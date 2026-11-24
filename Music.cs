@@ -109,7 +109,7 @@ internal static class Music
     /// <summary>The encounter has been called in for this side.</summary>
     internal static void Begin(ActiveEncounter enc)
     {
-        if (!Plugin.MusicEnabled.Value || enc == null) return;
+        if (!Plugin.MusicEnabled.Value || enc == null || AudioCapture.Requested) return; // trailer recording: no music
         Stop(fade: 1f);
         _enc = enc;
         _state = State.Loading;

@@ -286,6 +286,7 @@ internal static class RecordMode
         int layoutStep = 0;
         var keepLayout = (Plugin.ThreatBarX.Value, Plugin.ThreatBarY.Value, Plugin.ThreatBarScale.Value, Plugin.ThreatBarRotation.Value,
             Plugin.HealthBarsX.Value, Plugin.HealthBarsY.Value, Plugin.HealthBarsScale.Value, Plugin.HealthBarsRotation.Value, Plugin.HealthBarsWidth.Value);
+        AudioCapture.Begin(Path.Combine(frames, "audio.wav"));
         while (frame < total)
         {
             float t = frame / (float)Fps;
@@ -294,6 +295,8 @@ internal static class RecordMode
             if (settingsShot && t >= 12.5f && t < 12.6f) ShowSettings(true, "Aces");
             if (settingsShot && t >= 15f && t < 15.1f) { LoadoutsTest.Add(); ShowSettings(true, "Loadouts"); }
             if (settingsShot && t >= 18f && t < 18.1f) { ShowSettings(false); LoadoutsTest.Remove(); }
+            // Trailer recordings: no map over the picture (the scripted spawn leaves the join screen's map drawn).
+            if (frame % 10 == 0 && AudioCapture.Requested) { try { DynamicMap.EnableCanvas(false); } catch { } }
             if (layoutTest)
             {
                 if (layoutStep == 0 && t >= 40f) { layoutStep++; Log(outDir, $"{clip} t={t:0.0}s: layout editor {HudLayoutBridge.TestOpen()}"); }
@@ -319,6 +322,7 @@ internal static class RecordMode
 
             float realBefore = _lastFrameReal; _lastFrameReal = Time.realtimeSinceStartup; if (realBefore <= 0f) realBefore = _lastFrameReal;
             yield return new WaitForEndOfFrame();
+            AudioCapture.Frame();
             float hitch = _lastFrameReal - realBefore;
             if (hitch > 0.1f && t > 5f) Log(outDir, $"{clip} t={t:0.0}s: slow frame {hitch * 1000f:0} ms");
             if (!NoVideo)
@@ -336,6 +340,7 @@ internal static class RecordMode
                 total = Mathf.Min(total, frame + Fps * 2);
             }
         }
+        AudioCapture.End();
         Time.captureFramerate = 0;
         UnityEngine.Object.Destroy(tex);
         Plugin.SpawnDistanceKm.Value = keepSpawn;
@@ -505,6 +510,7 @@ internal static class RecordMode
                 hooked.Add((p, h));
             }
         clipStart = Time.time;
+        AudioCapture.Begin(Path.Combine(frames, "audio.wav"));
         while (frame < total)
         {
             EnsureCamera();
@@ -555,6 +561,7 @@ internal static class RecordMode
             }
 
             yield return new WaitForEndOfFrame();
+            AudioCapture.Frame();
             if (!NoVideo)
             {
                 if (tex.width != Screen.width || tex.height != Screen.height) tex.Reinitialize(Screen.width, Screen.height);
@@ -573,6 +580,7 @@ internal static class RecordMode
                 total = Mathf.Min(total, frame + Fps); // a second of the aftermath
             }
         }
+        AudioCapture.End();
         Time.captureFramerate = 0;
         UnityEngine.Object.Destroy(tex);
         if (mw != null) mw.onMissileWarning -= onWarn;
