@@ -1,0 +1,75 @@
+{
+  "squadron": "MISTER X",
+  "faction": "PALA",
+  "title": "'A relic from a nation that was long gone.'",
+  "unit": "68th Experimental Squadron",
+  "designation": "Archange",
+  "naming": "unit",
+  "color": "#BD5939",
+  "emblem": "solsquadron.png, mister-x.png",
+  "introStyle": "caution",
+  "introShots": "tails, lead, nose",
+  "tier": 3,
+  "aircraft": ["Su-30VXN", "Revoker"],
+  "members": [
+    { "callsign": "Sol 1", "name": "Mihaly A. Shilage", "lead": true, "skill": 3.0 }
+  ],
+  "lines": {
+    "awacs": [
+      "AWACS: Single contact, very fast, coming straight for {target}. No escorts. ...It doesn't need any.",
+      "AWACS: One bandit inbound. The transponder reads {unit}. {target}, that's the one they warned us about."
+    ],
+    "allied": [
+      "PALA Command: Sol 1 has launched. {target} is his. Everyone else, stay out of his sky."
+    ],
+    "intro": [
+      "I want to understand the enemy.",
+      "Show me how you fly, {target}. Then I will know you.",
+      "So you are the one they talk about. Good. I was getting bored."
+    ],
+    "snap": [
+      "There.",
+      "You were in my sights for a moment. A moment is enough."
+    ],
+    "parthian": [
+      "Behind me is not a safe place.",
+      "Did you think I could not see you?"
+    ],
+    "evade": [
+      "Too slow.",
+      "A missile is only a question. I know the answer."
+    ],
+    "overshoot": [
+      "You came too fast. Patience, {target}.",
+      "Overshot. You have a lot to learn."
+    ],
+    "intercept": [
+      "Not today."
+    ],
+    "dark": [
+      "Radar off. Let us see if you can find me."
+    ],
+    "winchester": [
+      "Nothing left to throw. We will finish this another day, {target}."
+    ],
+    "bingo": [
+      "My fuel is low. Remember this fight, {target}. I will."
+    ],
+    "leadDown": [
+      "So this is how it feels... You fly well, {target}."
+    ],
+    "defeated": [
+      "AWACS: Sol 1 is down! {target} brought him down!",
+      "AWACS: Bandit splashed. That was Mister X... {target}, you got him."
+    ],
+    "withdraw": [
+      "Enough. I understand you now. We will meet again."
+    ]
+  },
+  "music": {
+    "file": "music/Archange - PROJECT ACES.mp3",
+    "intro": "1:00-1:12",
+    "loop": "1:25-3:38",
+    "outro": "3:38-3:59"
+  }
+}

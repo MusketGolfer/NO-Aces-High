@@ -1,0 +1,58 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>netstandard2.1</TargetFramework>
+    <AssemblyName>NOAcesHigh</AssemblyName>
+    <RootNamespace>NOAcesHigh</RootNamespace>
+    <Version>0.3.0</Version>
+    <LangVersion>latest</LangVersion>
+    <Nullable>disable</Nullable>
+    <DebugType>none</DebugType>
+    <!-- Assembly-CSharp's own dependencies disagree on a System.IO.Compression version; irrelevant here. -->
+    <NoWarn>$(NoWarn);MSB3277</NoWarn>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <!-- This project lives in <game>\ModSource\NOAcesHigh. -->
+    <GameDir>$(MSBuildThisFileDirectory)..\..\</GameDir>
+    <Managed>$(GameDir)NuclearOption_Data\Managed\</Managed>
+    <BepInExCore>$(GameDir)BepInEx\core\</BepInExCore>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Reference Include="BepInEx" HintPath="$(BepInExCore)BepInEx.dll" Private="false" />
+    <Reference Include="0Harmony" HintPath="$(BepInExCore)0Harmony.dll" Private="false" />
+    <Reference Include="Assembly-CSharp" HintPath="$(Managed)Assembly-CSharp.dll" Private="false" />
+    <Reference Include="UnityEngine" HintPath="$(Managed)UnityEngine.dll" Private="false" />
+    <Reference Include="UnityEngine.CoreModule" HintPath="$(Managed)UnityEngine.CoreModule.dll" Private="false" />
+    <Reference Include="UnityEngine.UIModule" HintPath="$(Managed)UnityEngine.UIModule.dll" Private="false" />
+    <Reference Include="UnityEngine.UI" HintPath="$(Managed)UnityEngine.UI.dll" Private="false" />
+    <Reference Include="Unity.TextMeshPro" HintPath="$(Managed)Unity.TextMeshPro.dll" Private="false" />
+    <Reference Include="UnityEngine.AudioModule" HintPath="$(Managed)UnityEngine.AudioModule.dll" Private="false" />
+    <Reference Include="UnityEngine.UnityWebRequestModule" HintPath="$(Managed)UnityEngine.UnityWebRequestModule.dll" Private="false" />
+    <Reference Include="UnityEngine.UnityWebRequestAudioModule" HintPath="$(Managed)UnityEngine.UnityWebRequestAudioModule.dll" Private="false" />
+    <Reference Include="UnityEngine.IMGUIModule" HintPath="$(Managed)UnityEngine.IMGUIModule.dll" Private="false" />
+    <Reference Include="UnityEngine.ImageConversionModule" HintPath="$(Managed)UnityEngine.ImageConversionModule.dll" Private="false" />
+    <Reference Include="UnityEngine.TextRenderingModule" HintPath="$(Managed)UnityEngine.TextRenderingModule.dll" Private="false" />
+    <Reference Include="UnityEngine.PhysicsModule" HintPath="$(Managed)UnityEngine.PhysicsModule.dll" Private="false" />
+    <Reference Include="UnityEngine.InputLegacyModule" HintPath="$(Managed)UnityEngine.InputLegacyModule.dll" Private="false" />
+    <Reference Include="Rewired_Core" HintPath="$(Managed)Rewired_Core.dll" Private="false" />
+    <Reference Include="Mirage" HintPath="$(Managed)Mirage.dll" Private="false" />
+    <Reference Include="Newtonsoft.Json" HintPath="$(Managed)Newtonsoft.Json.dll" Private="false" />
+  </ItemGroup>
+
+  <!-- Bundled word lists and squadron examples ship next to the DLL. -->
+  <ItemGroup>
+    <None Include="Squadrons\**\*" CopyToOutputDirectory="PreserveNewest" LinkBase="AceSquadrons" />
+  </ItemGroup>
+
+  <!-- dotnet build -c Release -p:Install=true copies the plugin into BepInEx\plugins. -->
+  <Target Name="InstallPlugin" AfterTargets="Build" Condition="'$(Install)' == 'true'">
+    <ItemGroup>
+      <SquadronFiles Include="$(MSBuildThisFileDirectory)Squadrons\**\*" />
+      <!-- Never overwrite a squadron file already installed (the user may have edited it); only the guide is refreshed. -->
+      <SquadronNew Include="@(SquadronFiles)" Condition="!Exists('$(GameDir)BepInEx\plugins\NOAcesHigh\AceSquadrons\%(RecursiveDir)%(Filename)%(Extension)') Or '%(Filename)%(Extension)' == 'README.md'" />
+    </ItemGroup>
+    <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(GameDir)BepInEx\plugins\NOAcesHigh\" />
+    <Copy SourceFiles="@(SquadronNew)" DestinationFolder="$(GameDir)BepInEx\plugins\NOAcesHigh\AceSquadrons\%(RecursiveDir)" />
+  </Target>
+
+</Project>

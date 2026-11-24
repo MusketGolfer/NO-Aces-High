@@ -1,0 +1,28 @@
+{
+  "squadron": "Grey Wolves",
+  "title": "The Wolves of the North",
+  "color": "#9AA5B1",
+  "introStyle": "pw-boss",
+  "tier": 3,
+  "members": [
+    { "callsign": "Wolf 1", "name": "Viktor Halden", "lead": true },
+    { "callsign": "Wolf 2", "name": "Anya Sokolova" },
+    { "callsign": "Wolf 3" }
+  ],
+  "lines": {
+    "intro": [
+      "You've done enough damage. We'll take it from here.",
+      "Wolves, the hunt is on. That one is mine."
+    ],
+    "wingmanDown": [
+      "{callsign}! ...You'll pay for that.",
+      "The pack lost {callsign}. Close in, finish this."
+    ],
+    "leadDown": [
+      "Halden is down! ...Wolves, fall back!"
+    ],
+    "defeated": [
+      "AWACS: The Grey Wolves are broken. Outstanding flying."
+    ]
+  }
+}

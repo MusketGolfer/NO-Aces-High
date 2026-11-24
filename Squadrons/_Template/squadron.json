@@ -1,0 +1,28 @@
+{
+  "squadron": "My Squadron",
+  "faction": "BDF",
+  "title": "A Nickname for the Title Card",
+  "unit": "1st Unit",
+  "designation": "BDF 1st Tactical Fighter Wing",
+  "naming": "unit",
+  "color": "#4A90D9",
+  "emblemShape": "shield",
+  "introStyle": "unit",
+  "introShots": "classic",
+  "formation": "fingerfour",
+  "tier": 2,
+  "aircraft": ["Revoker"],
+  "members": [
+    { "callsign": "Lead 1", "name": "Your Ace", "lead": true },
+    { "callsign": "Lead 2" },
+    { "callsign": "Lead 3" },
+    { "callsign": "Lead 4" }
+  ],
+  "lines": {
+    "intro": ["{squadron}, engage. {target} doesn't leave this sky."],
+    "wingmanDown": ["{callsign} is down! Stay on him!"]
+  },
+  "music": {
+    "loop": "music/theme.ogg"
+  }
+}

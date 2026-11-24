@@ -1,0 +1,46 @@
+{
+  "squadron": "Umbra Solis",
+  "faction": "BDF",
+  "naming": "unit",
+  "unit": "41st Unit",
+  "designation": "BDF 3rd Tactical Fighter Wing, 8th Aggressor Squadron",
+  "title": "The Shade at Noon",
+  "color": "#C9B26B",
+  "emblemShape": "shield",
+  "introStyle": "unit",
+  "introShots": "nose",
+  "formation": "diamond",
+  "tier": 2,
+  "members": [
+    { "callsign": "Vesper 22", "name": "Arkady Ilyin", "lead": true },
+    { "callsign": "Vesper 99", "name": "Yelena Orlov" },
+    { "callsign": "Vesper 358", "name": "Radek Ferro" },
+    { "callsign": "Vesper 7", "name": "Nadia Zeller" }
+  ],
+  "lines": {
+    "awacs": [
+      "AWACS: New flight out of Boscali, inbound in a diamond. Unit markings... the 41st. Stay alert."
+    ],
+    "allied": [
+      "BDF Command: The 41st is airborne. Umbra Solis has {target}. Clear the lane."
+    ],
+    "intro": [
+      "Vesper 22 to all units. Target in sight. Take it down.",
+      "Orders from the Defense Force. This one doesn't leave Boscali's sky."
+    ],
+    "break": [
+      "Vesper 22, engaging. Hit them now.",
+      "Break. Vesper 99, Vesper 358, from the flanks."
+    ],
+    "wingmanDown": [
+      "{callsign}, respond! ...Damn.",
+      "{callsign} is down. Tighten up."
+    ],
+    "leadDown": [
+      "Vesper 22 is down. All units, disengage."
+    ],
+    "defeated": [
+      "AWACS: The 41st Unit is wiped out. Boscali's aggressors are done."
+    ]
+  }
+}

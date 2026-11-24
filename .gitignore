@@ -1,0 +1,10 @@
+bin/
+obj/
+Recordings/
+*.user
+.vs/
+*.suo
+*.mp3
+*.ogg
+*.wav
+Squadrons/Mihaly A. Shilage/solsquadron.png

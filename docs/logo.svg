@@ -1,0 +1,57 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="NO Aces High">
+  <title>NO Aces High</title>
+  <defs>
+    <path id="ring-top" d="M 66 256 A 190 190 0 0 1 446 256"/>
+    <path id="ring-bottom" d="M 54 256 A 202 202 0 0 0 458 256"/>
+    <linearGradient id="spade" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#F2C35B"/>
+      <stop offset="1" stop-color="#C98A2B"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Roundel -->
+  <circle cx="256" cy="256" r="246" fill="#12171F"/>
+  <circle cx="256" cy="256" r="238" fill="none" stroke="#D8402F" stroke-width="6"/>
+  <circle cx="256" cy="256" r="160" fill="none" stroke="#D8402F" stroke-width="3" opacity="0.9"/>
+
+  <!-- Ring lettering -->
+  <text font-family="'Bahnschrift', 'Arial Narrow', 'Helvetica Neue', Arial, sans-serif" font-weight="700" font-size="44"
+        letter-spacing="10" fill="#F2C35B" text-anchor="middle">
+    <textPath href="#ring-top" startOffset="50%">ACES HIGH</textPath>
+  </text>
+  <text font-family="'Bahnschrift', 'Arial Narrow', 'Helvetica Neue', Arial, sans-serif" font-weight="700" font-size="22"
+        letter-spacing="8" fill="#D8402F" text-anchor="middle">
+    <textPath href="#ring-bottom" startOffset="50%">★ ENEMY ACE SQUADRONS ★</textPath>
+  </text>
+
+  <!-- Chevrons either side, like a squadron marking -->
+  <g fill="#D8402F">
+    <path d="M 70 236 L 92 256 L 70 276 L 80 276 L 102 256 L 80 236 Z"/>
+    <path d="M 442 236 L 420 256 L 442 276 L 432 276 L 410 256 L 432 236 Z"/>
+  </g>
+
+  <!-- The ace: a spade -->
+  <path fill="url(#spade)" d="M256 118
+    C 222 168, 160 198, 160 262
+    C 160 306, 196 330, 232 318
+    C 241 315, 247 309, 251 302
+    C 248 336, 238 358, 220 374
+    L 292 374
+    C 274 358, 264 336, 261 302
+    C 265 309, 271 315, 280 318
+    C 316 330, 352 306, 352 262
+    C 352 198, 290 168, 256 118 Z"/>
+
+  <!-- A fighter cut into it, nose up -->
+  <path fill="#12171F" d="M256 150
+    L 261 170 L 262 196
+    L 276 204 L 276 214 L 263 210
+    L 264 226 L 318 264 L 318 276 L 265 262
+    L 266 296 L 284 310 L 284 318 L 256 312
+    L 228 318 L 228 310 L 246 296
+    L 247 262 L 194 276 L 194 264 L 248 226
+    L 249 210 L 236 214 L 236 204 L 250 196
+    L 251 170 Z"/>
+  <!-- Canopy -->
+  <path fill="#D8402F" d="M256 168 L 259 182 L 259 194 L 253 194 L 253 182 Z"/>
+</svg>

@@ -1,0 +1,46 @@
+{
+  "squadron": "Vermilion Team",
+  "faction": "PALA",
+  "naming": "team",
+  "designation": "PALA Vanguard Squadron",
+  "title": "The Red Line",
+  "color": "#E2432F",
+  "emblemShape": "pennant",
+  "introStyle": "caution",
+  "introShots": "tails",
+  "formation": "fingerfour",
+  "tier": 3,
+  "members": [
+    { "callsign": "Vermilion I", "name": "Konrad Varga", "lead": true },
+    { "callsign": "Vermilion II", "name": "Mila Dvorak" },
+    { "callsign": "Vermilion III", "name": "Oskar Lindqvist" },
+    { "callsign": "Vermilion IV", "name": "Irina Haas" }
+  ],
+  "lines": {
+    "awacs": [
+      "AWACS: Caution, caution. PALA Vanguard Squadron inbound. That's Vermilion Team.",
+      "AWACS: The Liberation Front sent its Vanguard. Vermilion Team, four ships, coming for {target}."
+    ],
+    "allied": [
+      "Front Command: Vermilion Team is airborne. {target} is theirs. All PALA units, give them the sky."
+    ],
+    "intro": [
+      "Vermilion I to all Vermilion. Target confirmed. For the Front, we end this here.",
+      "So this is the one the Defense Force keeps sending. Vermilion, engage."
+    ],
+    "break": [
+      "Vermilion, break. Finish them in one pass.",
+      "Break formation. Vermilion III, IV, take the high side."
+    ],
+    "wingmanDown": [
+      "{callsign} is down! Close it up!",
+      "We lost {callsign}... Hold together, Vermilion."
+    ],
+    "leadDown": [
+      "Vermilion I is gone! ...Pull out, all Vermilion, pull out!"
+    ],
+    "defeated": [
+      "AWACS: Vermilion Team is down. The Front just lost its Vanguard."
+    ]
+  }
+}
