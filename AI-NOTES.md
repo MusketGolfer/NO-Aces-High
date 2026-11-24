@@ -270,3 +270,14 @@ the config back at the end.
   (`Unit.damageCredit`).
 - `Patches.Failed` feeds the "some features are off" notice. `Encounters.ResetForMission` is the single clean-up point.
 - The install step no longer overwrites installed squadron files (it wiped a user's edits once); only README.md is refreshed.
+
+## 16. Liveries per jet, Squadron Down, kill markings, medals
+
+- `Liveries.cs`: squadron/member `livery` is one entry or a list. Workshop liveries name their aircraft in
+  `steamapps/workshop/content/2168680/<id>/meta.json` ("Aircraft"); each jet takes the entry made for it (else one with
+  no known jet). A workshop livery that is not installed falls back to a random paint and is flagged by the validator.
+- `SquadronDown.cs`: IMGUI card 1.5 s after the last ace falls (host from `Stats.OnEnd`, clients from `NetSync.EndMirror`).
+- `Stats.cs`: per-squadron emblem data (colour, shape, side, handmade key) for kill markings; ten medals
+  (`Stats.Medals`), checked after each ace kill and each win; new kill medals are announced over the radio.
+- Record-mode `-noahDownTest`: at 30 s the player is credited (`Unit.RecordDamage`) and the aces disabled
+  (`DisableUnit`); `UnitPart.TakeDamage` alone did not bring a jet down.

@@ -22,7 +22,7 @@ internal static class SquadronCheck
         "squadron", "faction", "title", "emblem", "emblemFps", "color", "introStyle", "introShots", "naming", "unit",
         "designation", "emblemShape", "formation", "tier", "aircraft", "livery", "loadout", "members", "lines", "music", "voice",
     };
-    private static readonly string[] MemberKeys = { "callsign", "name", "lead", "skill", "aircraft", "loadout" };
+    private static readonly string[] MemberKeys = { "callsign", "name", "lead", "skill", "aircraft", "loadout", "livery" };
 
     internal static List<string> Validate(SquadronDef def, JObject raw)
     {
@@ -108,8 +108,10 @@ internal static class SquadronCheck
                 if (!RandomNames.DefaultLines.ContainsKey(key))
                     p.Add($"Unknown line key \"{key}\"{Suggest(key, RandomNames.DefaultLines.Keys)}; it is never said.");
 
-        if (def.Livery != null && !def.Livery.Properties().Any(x => x.Name is "builtin" or "appdata" or "workshop"))
-            p.Add("\"livery\" needs one of \"builtin\", \"appdata\" or \"workshop\".");
+        CheckLivery(p, def.Livery, "\"livery\"");
+        if (def.Members != null)
+            foreach (var m in def.Members.Where(x => x?.Livery != null))
+                CheckLivery(p, m.Livery, $"{m.Callsign ?? "a member"}'s \"livery\"");
         return p;
     }
 
@@ -137,6 +139,22 @@ internal static class SquadronCheck
             foreach (var pr in problems) p.Add($"{what} on the {jet.unitName}: {pr}.");
         }
         catch (Exception ex) { p.Add($"{what} could not be read: {ex.Message}"); }
+    }
+
+    private static void CheckLivery(List<string> p, JToken token, string what)
+    {
+        if (token == null || token.Type == JTokenType.Null) return;
+        if (token.Type != JTokenType.Object && token.Type != JTokenType.Array) { p.Add($"{what} should be {{ \"workshop\": id }} (or builtin/appdata), or a list of those."); return; }
+        foreach (var e in Liveries.Entries(token))
+        {
+            if (!e.Properties().Any(x => x.Name is "builtin" or "appdata" or "workshop"))
+                p.Add($"{what}: each entry needs one of \"builtin\", \"appdata\" or \"workshop\".");
+            else if (e.TryGetValue("workshop", out var ws))
+            {
+                Liveries.WorkshopAircraft(ws.ToString(), out bool installed);
+                if (!installed) p.Add($"{what}: workshop livery {ws} is not installed. Subscribe to it on the Steam Workshop (until then a random livery is used).");
+            }
+        }
     }
 
     private static void CheckEnum<T>(List<string> p, string field, string value) where T : struct, Enum

@@ -90,7 +90,7 @@ public class Plugin : BaseUnityPlugin
     internal static ConfigEntry<bool> ShowThreatBar;
     internal static ConfigEntry<float> ThreatBarX;
     internal static ConfigEntry<float> ThreatBarY, ThreatBarScale, ThreatBarRotation;
-    internal static ConfigEntry<bool> MusicEnabled, VoiceEnabled, VoiceRadioFilter, RadioSubtitles;
+    internal static ConfigEntry<bool> MusicEnabled, VoiceEnabled, VoiceRadioFilter, RadioSubtitles, ShowSquadronDown;
     internal static ConfigEntry<float> VoiceVolume;
     internal static ConfigEntry<bool> MusicGatesIntro;
     internal static ConfigEntry<float> MaxMusicGateSeconds;
@@ -273,6 +273,8 @@ public class Plugin : BaseUnityPlugin
             new ConfigDescription("Volume of recorded radio lines.", new AcceptableValueRange<float>(0f, 1f), Attr(68)));
         VoiceRadioFilter = Config.Bind(snd, "VoiceRadioFilter", true, Order(67,
             "Play recorded lines through a radio filter (thin and slightly crunchy), as if heard over the radio."));
+        ShowSquadronDown = Config.Bind(hud, "SquadronDownCard", true, Order(65,
+            "When a squadron hunting your side is wiped out: its emblem stamped DESTROYED, how long it took, how many of its aces were yours, and any medal you just earned."));
         RadioSubtitles = Config.Bind(hud, "RadioSubtitles", true, Order(66,
             "Show the aces' and controllers' radio lines as text. Off: only recorded lines are heard, nothing is shown."));
         MusicGatesIntro = Config.Bind(snd, "IntroWaitsForMusic", true, Order(60,
@@ -395,6 +397,7 @@ public class Plugin : BaseUnityPlugin
             TitleCard.OnGUI();
             ThreatBar.OnGUI();
             SquadronHealth.OnGUI();
+            SquadronDown.OnGUI();
         }
         catch (Exception ex)
         {

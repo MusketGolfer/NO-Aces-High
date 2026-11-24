@@ -10,6 +10,8 @@
   "introShots": "tails",
   "formation": "fingerfour",
   "tier": 3,
+  "aircraft": ["Revoker"],
+  "livery": { "workshop": 3184848773 },
   "members": [
     { "callsign": "Vermilion I", "name": "Konrad Varga", "lead": true },
     { "callsign": "Vermilion II", "name": "Mila Dvorak" },

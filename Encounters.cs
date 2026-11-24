@@ -388,6 +388,7 @@ internal static class Encounters
         Retreated.Clear();
         Chatter.Clear();
         VoiceLines.Reset();
+        SquadronDown.Reset();
         DebugQueue.Cancel();
         SettingsMenu.SkipThisMission = false;
         _nextTaunt = 0f;

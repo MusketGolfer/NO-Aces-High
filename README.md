@@ -24,7 +24,10 @@ its own music, and pilots who fly like they mean it.
   [squadron guide](Squadrons/README.md).
 - **Loadouts.** A loadout editor in the settings: view every jet's loadouts, build your own presets, and choose what
   random aces carry.
-- **A record.** The settings page keeps your score: squadrons faced and beaten, aces you shot down, your fastest win.
+- **A record.** The settings page keeps your score: squadrons faced and beaten, aces you shot down, your fastest win,
+  a kill marking (its emblem) for every squadron you have beaten, and ten medals to earn.
+- **Squadron Down.** Wipe out a squadron and its emblem is stamped DESTROYED, with your time, how many of its aces
+  were yours, and any medal you just earned.
 
 ## Requirements
 

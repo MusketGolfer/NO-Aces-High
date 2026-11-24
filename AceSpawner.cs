@@ -171,7 +171,7 @@ internal static class AceSpawner
             GlobalPosition pos = Formations.SlotPosition(leadPos, -fromDir, Formations.Offset(enc.Formation, slot));
             // A pilot may fly its own airframe (first installed of its list); otherwise the squadron's.
             AircraftDefinition frame = MemberAirframe(m) ?? airframe;
-            LiveryKey memberLivery = frame == airframe ? livery : ResolveLivery(def, frame, enemy);
+            LiveryKey memberLivery = m.Livery == null && frame == airframe ? livery : ResolveLivery(def, frame, enemy, m);
             double t0 = sw.Elapsed.TotalMilliseconds;
             Loadout loadout = PickLoadout(def, frame, enemy, out float fuel, m);
             double t1 = sw.Elapsed.TotalMilliseconds;
@@ -350,7 +350,7 @@ internal static class AceSpawner
         if (def.Members is { Count: > 0 })
         {
             foreach (var m in def.Members.OrderByDescending(x => x.Lead).Take(count)) // the lead always flies
-                list.Add(new MemberDef { Callsign = m.Callsign, Name = m.Name, Lead = m.Lead, Skill = m.Skill, Aircraft = m.Aircraft, Loadout = m.Loadout });
+                list.Add(new MemberDef { Callsign = m.Callsign, Name = m.Name, Lead = m.Lead, Skill = m.Skill, Aircraft = m.Aircraft, Loadout = m.Loadout, Livery = m.Livery });
         }
         else
         {
@@ -381,16 +381,24 @@ internal static class AceSpawner
                            .FirstOrDefault(a => a != null);
     }
 
-    private static LiveryKey ResolveLivery(SquadronDef def, AircraftDefinition airframe, FactionHQ enemy)
+    private static LiveryKey ResolveLivery(SquadronDef def, AircraftDefinition airframe, FactionHQ enemy, MemberDef member = null)
     {
         var liveries = airframe.aircraftParameters.liveries;
-        JObject l = def.Livery;
+        // The pilot's own, then the squadron's: the entry made for this jet, else one for any jet.
+        JObject l = Liveries.For(member?.Livery, airframe) ?? Liveries.For(def.Livery, airframe);
+        if (l == null && (member?.Livery ?? def.Livery) != null)
+            Plugin.Log.LogInfo($"Squadron '{def.Squadron}': no livery listed for the {airframe.unitName}; using one of its own.");
         if (l != null)
         {
             try
             {
                 if (l.TryGetValue("workshop", out var ws))
-                    return new LiveryKey(LiveryKey.KeyType.Workshop, 0, ws.ToString());
+                {
+                    Liveries.WorkshopAircraft(ws.ToString(), out bool installed);
+                    if (installed) return new LiveryKey(LiveryKey.KeyType.Workshop, 0, ws.ToString());
+                    Plugin.Log.LogWarning($"Squadron '{def.Squadron}': workshop livery {ws} is not installed (subscribe to it on the Steam Workshop); using a random one.");
+                    return new LiveryKey(airframe.aircraftParameters.GetRandomLiveryForFaction(enemy.faction));
+                }
                 if (l.TryGetValue("appdata", out var ad))
                     return new LiveryKey(LiveryKey.KeyType.AppData, 0, ad.ToString());
                 if (l.TryGetValue("builtin", out var bi))

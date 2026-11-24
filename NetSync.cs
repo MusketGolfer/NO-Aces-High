@@ -251,6 +251,7 @@ internal static class NetSync
         if (_mirror == null) return;
         if (IntroDirector.Encounter == _mirror) IntroDirector.Abort();
         Music.End(_mirror, _mirror.AliveCount == 0 ? "defeated" : "withdraw");
+        if (_mirror.AliveCount == 0) SquadronDown.Show(_mirror, Time.time - _mirror.StartTime, -1, _mirror.Members.Count, null);
         _mirror.Ended = true;
         Plugin.Log.LogInfo($"Encounter copy of {_mirror.SquadronName} closed ({why}).");
         _mirror = null;

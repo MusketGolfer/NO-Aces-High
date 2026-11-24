@@ -281,12 +281,15 @@ internal static class RecordMode
         bool layoutTest = Environment.GetCommandLineArgs().Any(a => a.Equals("-noahLayoutTest", StringComparison.OrdinalIgnoreCase));
         // -noahSettingsShot: open the F1 settings window on this mod from 26 s to 32 s, to film the settings page.
         bool settingsShot = Environment.GetCommandLineArgs().Any(a => a.Equals("-noahSettingsShot", StringComparison.OrdinalIgnoreCase));
+        // -noahDownTest: at 30 s the player is credited with destroying every ace, to see the Squadron Down card and medals.
+        bool downTest = Environment.GetCommandLineArgs().Any(a => a.Equals("-noahDownTest", StringComparison.OrdinalIgnoreCase));
         int layoutStep = 0;
         var keepLayout = (Plugin.ThreatBarX.Value, Plugin.ThreatBarY.Value, Plugin.ThreatBarScale.Value, Plugin.ThreatBarRotation.Value,
             Plugin.HealthBarsX.Value, Plugin.HealthBarsY.Value, Plugin.HealthBarsScale.Value, Plugin.HealthBarsRotation.Value, Plugin.HealthBarsWidth.Value);
         while (frame < total)
         {
             float t = frame / (float)Fps;
+            if (downTest && t >= 30f && t < 30.1f) DestroyAces(outDir, clip);
             if (settingsShot && t >= 12f && t < 12.1f) ShowSettings(true);
             if (settingsShot && t >= 12.5f && t < 12.6f) ShowSettings(true, "Aces");
             if (settingsShot && t >= 15f && t < 15.1f) { LoadoutsTest.Add(); ShowSettings(true, "Loadouts"); }
@@ -357,6 +360,25 @@ internal static class RecordMode
         catch (Exception ex) { Plugin.Log.LogWarning("Settings shot: " + (ex.InnerException ?? ex).Message); }
     }
 
+    /// <summary>Record mode: every ace of the current squadron takes a killing blow credited to the local player.</summary>
+    private static void DestroyAces(string outDir, string clip)
+    {
+        var enc = Encounters.Current;
+        var me = Session.LocalAircraft;
+        if (enc == null || me == null) { Log(outDir, $"{clip}: down test: no squadron or no player"); return; }
+        int n = 0;
+        foreach (var m in enc.Members.Where(x => x.Alive && x.Aircraft != null && !x.Aircraft.disabled).ToList())
+        {
+            try
+            {
+                m.Aircraft.RecordDamage(me.persistentID, 10000f);
+                m.Aircraft.DisableUnit();
+                n++;
+            }
+            catch (Exception ex) { Log(outDir, $"{clip}: down test: {m.Callsign}: {ex.Message}"); }
+        }
+        Log(outDir, $"{clip}: down test: hit {n} ace(s) for the player");
+    }
     private static AircraftDefinition FindAirframe(string name) =>
         Encyclopedia.i.aircraft.FirstOrDefault(a => a != null && a.unitPrefab != null &&
             (a.unitName ?? "").IndexOf(name, StringComparison.OrdinalIgnoreCase) >= 0);

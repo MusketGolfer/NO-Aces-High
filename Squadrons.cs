@@ -52,7 +52,8 @@ internal sealed class SquadronDef
     [JsonProperty("tier")] public int? Tier;
     [JsonProperty("aircraft")] public List<string> Aircraft;
     /// <summary>{"builtin": 2} or {"builtin": "name"}, {"appdata": "folder"}, {"workshop": 123}.</summary>
-    [JsonProperty("livery")] public JObject Livery;
+    /// <summary>One livery or a list, each for one jet (see Liveries).</summary>
+    [JsonProperty("livery")] public JToken Livery;
     /// <summary>Unset/"default" = the best air-to-air loadout; a loadout name (standard or saved preset); or a built one (see Loadouts).</summary>
     [JsonProperty("loadout")] public JToken Loadout;
     [JsonProperty("members")] public List<MemberDef> Members;
@@ -83,6 +84,8 @@ internal sealed class MemberDef
     [JsonProperty("aircraft")] public List<string> Aircraft;
     /// <summary>This pilot's own loadout, like the squadron's "loadout"; unset = the squadron's.</summary>
     [JsonProperty("loadout")] public JToken Loadout;
+    /// <summary>This pilot's own livery (one or a list, like the squadron's); unset = the squadron's.</summary>
+    [JsonProperty("livery")] public JToken Livery;
 }
 
 internal static class Squadrons

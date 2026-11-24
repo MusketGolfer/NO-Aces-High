@@ -11,6 +11,7 @@
   "introShots": "tails, lead, nose",
   "tier": 3,
   "aircraft": ["Su-30VXN", "Revoker"],
+  "livery": [ { "workshop": 3841481598 }, { "workshop": 3414171937 } ],
   "members": [
     { "callsign": "Sol 1", "name": "Mihaly A. Shilage", "lead": true, "skill": 3.0 }
   ],

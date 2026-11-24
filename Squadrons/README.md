@@ -79,7 +79,7 @@ the message gives the line where the mistake is (often a missing or extra comma 
 | `tier` | How good they are. | `1`, `2` or `3` (3 flies post-stall manoeuvres). |
 | `aircraft` | The jet they fly, as a priority list: the first one installed is used, so later names are backups (`["Su-30VXN Gandiva", "Revoker"]` flies the modded jet when it is installed, the Revoker when it is not). | A list of names: the short name is enough (`"Revoker"`, `"Ifrit"`), the full name (`"FS-12 Revoker"`) also works, and so do modded aircraft names. Left out: any allowed airframe. If none is installed, the squadron does not fly. |
 | `loadout` | Their weapons. | A loadout name (one of the jet's standard loadouts as the game's loadout menu shows it, or a preset you saved in the F1 loadout editor), or a loadout built station by station. See [Loadouts](#loadouts). Left out: the best air-to-air loadout. |
-| `livery` | Their paint. | `{ "builtin": 2 }` (by number) or `{ "builtin": "name" }`, `{ "appdata": "folder" }` for a livery in your liveries folder, `{ "workshop": 123456 }` for a Steam Workshop livery. Left out: a random one for their side. |
+| `livery` | Their paint. | `{ "builtin": 2 }` (by number) or `{ "builtin": "name" }`, `{ "appdata": "folder" }` for a livery in your liveries folder, `{ "workshop": 123456 }` for a Steam Workshop livery (the number in its Workshop page address; subscribe to it first). Or a list, one per jet: `[ { "workshop": 3841481598 }, { "workshop": 3414171937 } ]`. Each jet wears the livery made for it (Workshop liveries say which jet they are for; add `"aircraft": "Revoker"` to an entry to say it yourself, which appdata liveries need). Members can have their own `livery`. Left out: a random one for their side. |
 | `members` | The pilots, 1 to 16 (more than 4 is fine), lead first. | See below. Left out: 2 to 4 generated pilots. |
 | `lines` | What they say on the radio. | See below. |
 | `music` | Their own music. | See below. |
@@ -114,6 +114,8 @@ entry is reported in the squadron menu; if it is picked, that flight uses your s
   out to fly the squadron's. A mixed flight is fine: the formation lead flies at cruise so slower jets keep up.
 - `loadout` gives that pilot its own weapons, written like the squadron's [`loadout`](#loadouts). Leave it out to
   use the squadron's.
+- `livery` gives that pilot its own paint, written like the squadron's `livery` (one, or a list with one per jet).
+  Leave it out to use the squadron's.
 
 ### Radio lines
 

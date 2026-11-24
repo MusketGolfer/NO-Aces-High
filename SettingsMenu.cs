@@ -42,7 +42,7 @@ internal static class SettingsMenu
         // 6. Intro
         "PlayIntro", "CinematicCamera", "SlowMotion", "MaxWaitSeconds", "PrewarmShots", "FadeCameraJumps",
         // 7. HUD
-        "ThreatBar", "SquadronHealthBars", "RadioSubtitles", "ThreatBarX", "ThreatBarY", "ThreatBarScale", "ThreatBarRotation",
+        "ThreatBar", "SquadronHealthBars", "SquadronDownCard", "RadioSubtitles", "ThreatBarX", "ThreatBarY", "ThreatBarScale", "ThreatBarRotation",
         "SquadronHealthBarsX", "SquadronHealthBarsY", "SquadronHealthBarsWidth", "SquadronHealthBarsScale", "SquadronHealthBarsRotation",
         // 8. Sound
         "Music", "IntroWaitsForMusic", "MaxIntroMusicWait", "VoiceLines", "VoiceVolume", "VoiceRadioFilter",

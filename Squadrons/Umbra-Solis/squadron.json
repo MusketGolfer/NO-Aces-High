@@ -11,6 +11,8 @@
   "introShots": "nose",
   "formation": "diamond",
   "tier": 2,
+  "aircraft": ["Ifrit"],
+  "livery": { "workshop": 3838798146 },
   "members": [
     { "callsign": "Vesper 22", "name": "Arkady Ilyin", "lead": true },
     { "callsign": "Vesper 99", "name": "Yelena Orlov" },
