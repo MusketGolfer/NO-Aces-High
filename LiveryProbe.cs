@@ -166,6 +166,12 @@ internal static class LiveryProbe
                 ("left", new Vector3(-1f, 0.15f, -0.1f)), ("right", new Vector3(1f, 0.15f, -0.1f)),
                 ("top", new Vector3(0f, 1f, -0.2f)), ("front", new Vector3(-0.6f, 0.2f, 0.8f)),
             };
+            // -noahLowShots: views from below the wing line instead, for checking what hangs under the jet.
+            if (Environment.GetCommandLineArgs().Any(x => x.Equals("-noahLowShots", StringComparison.OrdinalIgnoreCase)))
+                views = new (string name, Vector3 local)[]
+                {
+                    ("low-left", new Vector3(-1f, -0.12f, 0f)), ("low-front", new Vector3(-0.5f, -0.35f, 0.8f)),
+                };
             foreach (var (name, local) in views)
             {
                 orbit.Target = a;
