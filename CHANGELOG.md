@@ -9,6 +9,8 @@
 - **Why an ace went down.** Every lost ace gets a `Loss:` line in the log: shot down (and by whom), hit by a blast
   or collision, broke up under its own g, or hit the ground. The line also gives damage credit, speed, height, g and
   its last hits and lost parts.
+- **Health bars wait for the intro.** The aces' health bars appear once their intro is over, not while it is queued
+  or playing.
 
 ## 1.2.1
 

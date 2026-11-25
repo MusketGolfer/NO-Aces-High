@@ -85,6 +85,9 @@ internal static class SquadronHealth
         if (hq == null || Session.LocalAircraft == null) return null;
         if (IntroDirector.Playing && IntroDirector.CameraCut) return null;
         var enc = Encounters.ActiveAgainst(hq) ?? NetSync.Mirror;
+        // The bars come up once the squadron has been introduced: not while its intro is queued, waiting for a
+        // safe moment or playing (camera shots and title card). With intros off there is nothing to wait for.
+        if (enc != null && IntroDirector.Active && IntroDirector.Encounter == enc) return null;
         return enc is { Ended: false } && enc.Members.Count > 0 ? enc : null;
     }
 
