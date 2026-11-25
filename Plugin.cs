@@ -388,6 +388,7 @@ public class Plugin : BaseUnityPlugin
         try
         {
             DebugQueue.Tick();
+            Emblem.Tick();
             IntroDirector.Tick();
             SettingsMenu.Tick();
             VoiceLines.Tick();

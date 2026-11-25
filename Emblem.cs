@@ -89,8 +89,42 @@ internal sealed class Emblem
         }
         tex.wrapMode = TextureWrapMode.Clamp;
         tex.filterMode = FilterMode.Trilinear;
+        tex.mipMapBias = SharpBias;
         UnityEngine.Object.DontDestroyOnLoad(tex);
         return tex;
+    }
+
+    /// <summary>Drawn smaller than its size, an emblem picks a slightly sharper mip level than the default.</summary>
+    private const float SharpBias = -0.5f;
+
+    /// <summary>Size of a generated emblem once its sharp version is painted (the cards draw them up to ~56% of the screen height).</summary>
+    private const int SharpSize = 1024;
+
+    private static readonly List<(Emblem emblem, System.Threading.Tasks.Task<Color32[]> job, string name)> Painting = new();
+
+    /// <summary>Called every frame: swaps in sharp emblems painted in the background.</summary>
+    internal static void Tick()
+    {
+        for (int i = Painting.Count - 1; i >= 0; i--)
+        {
+            var (emblem, job, name) = Painting[i];
+            if (!job.IsCompleted) continue;
+            Painting.RemoveAt(i);
+            if (job.IsFaulted || job.Result == null) { Plugin.Log.LogWarning($"Emblem {name}: sharp version failed: {job.Exception?.GetBaseException().Message}"); continue; }
+            try
+            {
+                var tex = new Texture2D(SharpSize, SharpSize, TextureFormat.RGBA32, mipChain: true) { name = "emblem:" + name };
+                tex.SetPixels32(job.Result);
+                tex.Apply(updateMipmaps: true, makeNoLongerReadable: true);
+                tex.wrapMode = TextureWrapMode.Clamp;
+                tex.filterMode = FilterMode.Trilinear;
+                tex.mipMapBias = SharpBias;
+                UnityEngine.Object.DontDestroyOnLoad(tex);
+                emblem.Frames = new[] { tex }; // the quick 256 px version stays alive for anything still holding it
+                Plugin.Log.LogInfo($"Emblem {name}: sharp {SharpSize} px version ready.");
+            }
+            catch (Exception ex) { Plugin.Log.LogWarning($"Emblem {name}: could not upload the sharp version: {ex.Message}"); }
+        }
     }
 
     private static readonly Dictionary<string, Emblem> GeneratedCache = new();
@@ -113,15 +147,20 @@ internal sealed class Emblem
 
         const int size = 256;
         var tex = new Texture2D(size, size, TextureFormat.RGBA32, mipChain: true) { name = "emblem:" + squadronName };
-        var px = Paint(Seed(squadronName), colour, shape, side, size);
+        int seed = Seed(squadronName);
+        var px = Paint(seed, colour, shape, side, size);
         tex.SetPixels32(px);
         tex.Apply(updateMipmaps: true, makeNoLongerReadable: true);
         tex.wrapMode = TextureWrapMode.Clamp;
         tex.filterMode = FilterMode.Trilinear;
+        tex.mipMapBias = SharpBias;
         UnityEngine.Object.DontDestroyOnLoad(tex);
 
         var emblem = new Emblem { Frames = new[] { tex }, Generated = true };
         GeneratedCache[key] = emblem;
+        // The quick version shows at once; a 1024 px one is painted on a worker thread and swapped in (Tick).
+        var s = shape; var sd = side; var col = colour;
+        Painting.Add((emblem, System.Threading.Tasks.Task.Run(() => Paint(seed, col, s, sd, SharpSize)), squadronName));
         return emblem;
     }
 
@@ -232,31 +271,38 @@ internal sealed class Emblem
 
         public Color Roundel(Vector2 p)
         {
+            // A badge: gold bezel with notched ticks, a thin white ring, a domed disc in the squadron colour and a
+            // centre motif; optional sash behind the motif and three stars on the bezel.
             float r = p.magnitude;
             Color c = Color.clear;
-            c = Over(c, _dark, Cover(r - 0.96f), 0.88f);
-            c = Over(c, _main, Cover(Mathf.Max(r - 0.96f, 0.84f - r)));
+            c = Over(c, _dark, Cover(r - 0.97f));
+            // Bezel and its 24 ticks.
+            float bezel = Mathf.Max(r - 0.95f, 0.8f - r);
+            c = Over(c, _gold, Cover(bezel));
+            float ang = Mathf.Atan2(p.y, p.x);
+            float tick = Mathf.Abs(Mathf.Repeat(ang / (Mathf.PI * 2f) * 24f + 0.5f, 1f) - 0.5f) * (Mathf.PI * 2f / 24f) * r - 0.012f;
+            c = Over(c, _dark, Cover(Mathf.Max(Mathf.Max(tick, 0.86f - r), r - 0.93f)), 0.85f);
+            c = Over(c, _dark, Cover(Mathf.Abs(r - 0.8f) - 0.012f));
+            // Domed disc: the colour, lighter toward the upper left.
+            float disc = r - 0.77f;
+            float light = Mathf.Clamp01(0.5f + Vector2.Dot(p, new Vector2(-0.55f, 0.65f)) * 0.6f);
+            Color dome = Color.Lerp(Color.Lerp(_main, _dark, 0.35f), Color.Lerp(_main, Color.white, 0.18f), light);
+            c = Over(c, dome, Cover(disc));
+            c = Over(c, White, Cover(Mathf.Abs(r - 0.72f) - 0.01f), 0.8f);
             if (Bit(0))
             {
-                c = Over(c, _main, Cover(Poly(p / 0.5f, _star5) * 0.5f));
-            }
-            else
-            {
-                float depth = 0.22f + ((_seed >> 2) & 7) * 0.02f;
-                float chev = Mathf.Abs(p.x) * 0.9f + p.y;
-                float band = Mathf.Max(Mathf.Max((0.05f - depth) - chev, chev - 0.05f), Mathf.Abs(p.x) - 0.62f);
-                c = Over(c, _main, Cover(band));
+                var q = Rot(p, 35f);
+                c = Over(c, _dark, Cover(Mathf.Max(Mathf.Abs(q.y) - 0.13f, disc + 0.05f)), 0.55f);
+                c = Over(c, _gold, Cover(Mathf.Max(Mathf.Abs(Mathf.Abs(q.y) - 0.13f) - 0.01f, disc + 0.05f)), 0.8f);
             }
             if (Bit(1))
-            {
-                for (int k = 0; k < 4; k++)
+                for (int k = -1; k <= 1; k++)
                 {
-                    float a = Mathf.PI * 0.25f + k * Mathf.PI * 0.5f;
-                    var q = p - new Vector2(Mathf.Cos(a), Mathf.Sin(a)) * 0.68f;
-                    c = Over(c, White, Cover(Mathf.Abs(q.x) + Mathf.Abs(q.y) - 0.08f));
+                    float a = Mathf.PI * 0.5f + k * 0.42f;
+                    var q = p - new Vector2(Mathf.Cos(a), Mathf.Sin(a)) * 0.875f;
+                    c = Over(c, White, Cover(Poly(q / 0.065f, _star5) * 0.065f));
                 }
-            }
-            return c;
+            return Motif(c, p, 0.44f, White, _gold);
         }
 
         public Color Shield(Vector2 p)

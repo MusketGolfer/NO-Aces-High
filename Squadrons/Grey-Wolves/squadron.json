@@ -2,6 +2,7 @@
   "squadron": "Grey Wolves",
   "title": "The Wolves of the North",
   "color": "#9AA5B1",
+  "emblemShape": "roundel",
   "introStyle": "pw-boss",
   "tier": 3,
   "members": [
