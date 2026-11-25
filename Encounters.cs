@@ -389,6 +389,7 @@ internal static class Encounters
         Chatter.Clear();
         VoiceLines.Reset();
         SquadronDown.Reset();
+        AmbientChatter.Reset();
         DebugQueue.Cancel();
         SettingsMenu.SkipThisMission = false;
         _nextTaunt = 0f;
@@ -524,6 +525,7 @@ internal static class Encounters
                 return;
             }
             AceTactics.Tick(_active, TargetAircraft(_active));
+            AmbientChatter.Tick(_active, TargetAircraft(_active));
             TickActive(_active, TargetAircraft(_active));
             return;
         }

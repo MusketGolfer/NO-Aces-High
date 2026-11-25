@@ -83,23 +83,64 @@ internal static class Factions
 
     // ---- flavour --------------------------------------------------------------------------------------
 
-    internal static readonly string[] BdfCallsigns = { "Lancer", "Sentinel", "Warden", "Saber", "Halo", "Paladin", "Corsair", "Bastion", "Aegis", "Kestrel" };
-    internal static readonly string[] PalaCallsigns = { "Partisan", "Ember", "Spark", "Hammer", "Comet", "Thorn", "Banner", "Wildfire", "Sickle", "Torch" };
+    internal static readonly string[] BdfCallsigns =
+    {
+        "Lancer", "Sentinel", "Warden", "Saber", "Halo", "Paladin", "Corsair", "Bastion", "Aegis", "Kestrel",
+        "Templar", "Rampart", "Herald", "Marshal", "Vanguard", "Citadel", "Bulwark", "Cavalier", "Arbiter", "Regent",
+        "Sterling", "Bishop", "Rook", "Constable", "Gallant", "Valiant", "Trident", "Harrier", "Merlin", "Gauntlet",
+    };
+    internal static readonly string[] PalaCallsigns =
+    {
+        "Partisan", "Ember", "Spark", "Hammer", "Comet", "Thorn", "Banner", "Wildfire", "Sickle", "Torch",
+        "Cinder", "Flint", "Bramble", "Rebel", "Ironwood", "Kindling", "Ash", "Blaze", "Pitchfork", "Lantern",
+        "Firebrand", "Rook", "Briar", "Smoke", "Thistle", "Arrow", "Outlaw", "Sparrow", "Granite", "Beacon",
+    };
 
-    internal static readonly string[] BdfTeamOrgs = { "Vanguard", "Sentinel", "Aggressor", "Home Guard", "Rapid Reaction", "Expeditionary", "Air Defence" };
-    internal static readonly string[] PalaTeamOrgs = { "Liberation", "Revolutionary", "People's", "Partisan", "Vanguard", "Red Banner", "Free Primeva" };
+    internal static readonly string[] BdfTeamOrgs =
+    {
+        "Vanguard", "Sentinel", "Aggressor", "Home Guard", "Rapid Reaction", "Expeditionary", "Air Defence",
+        "Coastal Defence", "Capital Defence", "Royal Escort", "Frontier", "Strategic Reserve", "Joint Strike", "Interdiction",
+        "Northern Command", "Naval Air", "Quick Reaction", "Combined Arms", "Special Air", "Honour", "Air Dominance",
+    };
+    internal static readonly string[] PalaTeamOrgs =
+    {
+        "Liberation", "Revolutionary", "People's", "Partisan", "Vanguard", "Red Banner", "Free Primeva",
+        "Insurgent", "Mountain", "Popular Front", "Workers'", "Volunteer", "Uprising", "Highland", "Resistance",
+        "Red Star", "Freedom", "Liberation Front", "Peasants'", "Guerrilla", "Unity",
+    };
 
-    internal static readonly string[] BdfColourWords = { "Cobalt", "Azure", "Slate", "Silver", "Ivory", "Gold", "Indigo", "Ash" };
-    internal static readonly string[] PalaColourWords = { "Crimson", "Vermilion", "Scarlet", "Ember", "Amber", "Onyx", "Jade", "Ash" };
+    internal static readonly string[] BdfColourWords =
+    {
+        "Cobalt", "Azure", "Slate", "Silver", "Ivory", "Gold", "Indigo", "Ash", "Cerulean", "Sapphire", "Pearl", "Steel", "Navy",
+        "Frost", "Platinum", "Pewter", "Bronze", "Teal", "Cyan", "Midnight", "Smoke", "Graphite", "Sand", "Topaz",
+    };
+    internal static readonly string[] PalaColourWords =
+    {
+        "Crimson", "Vermilion", "Scarlet", "Ember", "Amber", "Onyx", "Jade", "Ash", "Cardinal", "Ruby", "Rust", "Copper", "Ochre",
+        "Maroon", "Olive", "Cinnabar", "Garnet", "Saffron", "Obsidian", "Emerald", "Coral", "Plum", "Magenta", "Lime",
+    };
 
     internal static readonly string[] PalaRegimentTypes =
     {
         "Liberation Guards Air Regiment", "Revolutionary Fighter Regiment", "People's Air Defence Regiment", "Partisan Air Brigade",
         "Red Banner Fighter Regiment",
+        "Mountain Air Defence Regiment", "Popular Front Air Regiment", "Insurgent Fighter Group", "Workers' Air Regiment",
+        "Free Primeva Guards Regiment", "Highland Interceptor Regiment", "Uprising Air Brigade", "Resistance Fighter Regiment",
+        "Red Star Aviation Regiment", "Volunteer Air Regiment",
     };
 
-    internal static readonly string[] BdfPlaces = { "the Boscali Coast", "the Capital", "the Northern Shield", "the Boscali Skies", "the Border" };
-    internal static readonly string[] PalaPlaces = { "the Highlands", "Free Primeva", "the Mountain Front", "the Uprising", "the Red Dawn" };
+    internal static readonly string[] BdfPlaces =
+    {
+        "the Boscali Coast", "the Capital", "the Northern Shield", "the Boscali Skies", "the Border", "the Western Reach", "the Harbour",
+        "the Lowlands", "the Crown", "the Southern Approaches", "the Iron Bay", "the Old Republic", "the Lighthouse Coast",
+        "the Grey Sound", "the Federation",
+    };
+    internal static readonly string[] PalaPlaces =
+    {
+        "the Highlands", "Free Primeva", "the Mountain Front", "the Uprising", "the Red Dawn", "the High Passes", "the Long March",
+        "the Valley of Ash", "the People", "the Burning Hills", "the Plateau", "the Free Cantons", "the Revolution", "the Pine Ridge",
+        "the First Barricade",
+    };
 
     internal static readonly Color[] BdfPalette =
     {

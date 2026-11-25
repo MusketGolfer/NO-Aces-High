@@ -45,7 +45,7 @@ internal static class SettingsMenu
         "ThreatBar", "SquadronHealthBars", "SquadronDownCard", "RadioSubtitles", "ThreatBarX", "ThreatBarY", "ThreatBarScale", "ThreatBarRotation",
         "SquadronHealthBarsX", "SquadronHealthBarsY", "SquadronHealthBarsWidth", "SquadronHealthBarsScale", "SquadronHealthBarsRotation",
         // 8. Sound
-        "Music", "IntroWaitsForMusic", "MaxIntroMusicWait", "VoiceLines", "VoiceVolume", "VoiceRadioFilter",
+        "Music", "IntroWaitsForMusic", "MaxIntroMusicWait", "VoiceLines", "VoiceVolume", "VoiceRadioFilter", "AmbientChatter", "ChatterMinSeconds", "ChatterMaxSeconds", "ChatterChance",
     };
 
     /// <summary>Fine placement numbers, shown only with the settings window's "Advanced settings" ticked.</summary>

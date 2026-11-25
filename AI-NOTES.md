@@ -290,3 +290,17 @@ dark only removes the second. So the flight goes dark only if no hunted-side det
 (cleared each scan) and no operating, unjammed hunted-side `Radar` has an ace inside 90% of `GetRadarRange()`, for 4 s;
 being seen (or in coverage) lights them up. Log lines: "seen by <unit>", "no longer seen ...". In Free Flight a carrier
 covers the spawn, so they stay lit; in missions without AWACS or radar coverage near the ingress they go dark.
+
+## 18. Intro camera, chatter, variety (2026-11-25)
+
+- `ShotCamera`: FormationRear backs off and fits `span` (the furthest jet from the centre); TailPan orders fins left to
+  right across the formation and runs a Catmull-Rom curve through at most five of them (Vermilion's finger-four had
+  jumped 70 m sideways between fins in squadron order). New shots ChaseLead, WingmanFocus, TopDown, Silhouette
+  (camera on the far side of the flight from `RenderSettings.sun`), PushIn; new lists Escort, Silhouette, Overhead.
+- `AmbientChatter`: after the intro, a random gap (ChatterMin..Max s) then a ChatterChance roll; quiet within 6 s of any
+  radio line (`Chatter.LastLineAt`); `chatterIngress` while in formation (or a lone ace over 15 km out), else
+  `chatterFight`; a squadron's own `chatter` list covers both.
+- Emblems: eight more frames (Diamond, Hexagon, Delta, Cross, Sunburst, Tab, Bolt, Spade), each with one of eight centre
+  motifs from seed bits 8-10 (`Painter.Motif`). `-noahEmblems` writes a gallery PNG of every frame x motif.
+- Naming: five more schemes (Mercenary, Legion, Guard, Experimental, Militia) with their own word lists, side weights,
+  emblem frames and title cards; every older word pool roughly tripled. `Roman()` now goes past VIII (`RomanFull`).

@@ -68,13 +68,13 @@ the message gives the line where the mistake is (often a missing or extra comma 
 | `title` | A nickname shown on the title card. | Any text, e.g. `"The Shade at Noon"`. |
 | `unit` | Unit number shown after the name. | e.g. `"41st Unit"`. |
 | `designation` | Parent organisation on the title card. | e.g. `"BDF 3rd Tactical Fighter Wing"`. |
-| `naming` | The naming tradition used to fill in anything you left out. | `classic`, `team`, `unit`, `regiment`, `navy`, or `random` |
+| `naming` | The naming tradition used to fill in anything you left out. | `classic`, `team`, `unit`, `regiment`, `navy`, `mercenary`, `legion`, `guard`, `experimental`, `militia`, or `random` |
 | `color` | Squadron colour (generated emblem, title card accents). | A hex code, e.g. `"#C9B26B"`, or `random` (a new colour every time they fly). |
 | `emblem` | Your emblem artwork. | A `.png` or `.jpg` in the squadron folder, e.g. `"emblem.png"`; or a folder of numbered PNG frames for an animated emblem, e.g. `"emblem"` holding `0001.png`, `0002.png`... (WebP is not supported: save as PNG.) Backups work like aircraft: `"mine.png, fallback.png"` uses the first file that is there. |
 | `emblemFps` | Frame rate of an animated emblem. | A number, default 12. |
-| `emblemShape` | Shape of the generated emblem when you have no artwork. | `roundel`, `shield`, `pennant`, `arrowhead`, `wings`, `crescent`, or `random` |
+| `emblemShape` | Shape of the generated emblem when you have no artwork. | `roundel`, `shield`, `pennant`, `arrowhead`, `wings`, `crescent`, `diamond`, `hexagon`, `delta`, `cross`, `sunburst`, `tab`, `bolt`, `spade`, or `random`. The newer eight carry one of eight centre motifs (star, compass star, chevrons, lightning, crossed swords, jet, crescent, ring), chosen by the squadron name. |
 | `introStyle` | The title card. | `pw-boss`, `stamp`, `typewriter`, `caution`, `unit`, or `random` |
-| `introShots` | The intro camera's shot list. | `classic`, `tails`, `headon`, `cockpit`, `lead`, `nose`, `distant`, or `random` |
+| `introShots` | The intro camera's shot list. | `classic`, `tails`, `headon`, `cockpit`, `lead`, `nose`, `distant`, `escort`, `silhouette`, `overhead`, or `random` |
 | `formation` | Formation on the way in (and when leaving). | `echelonright`, `echelonleft`, `vic`, `fingerfour`, `lineabreast`, `trail`, `diamond`, `box`, or `random` |
 | `tier` | How good they are. | `1`, `2` or `3` (3 flies post-stall manoeuvres). |
 | `aircraft` | The jet they fly, as a priority list: the first one installed is used, so later names are backups (`["Su-30VXN Gandiva", "Revoker"]` flies the modded jet when it is installed, the Revoker when it is not). | A list of names: the short name is enough (`"Revoker"`, `"Ifrit"`), the full name (`"FS-12 Revoker"`) also works, and so do modded aircraft names. Left out: any allowed airframe. If none is installed, the squadron does not fly. |
@@ -142,6 +142,9 @@ for that moment; keys you leave out use the built-in ones.
 | `leadDown` | The lead is shot down. |
 | `defeated` | The whole squadron is shot down. |
 | `withdraw` | The squadron gives up and leaves. |
+| `chatterIngress` | Banter on the way in, now and then, with nothing in particular happening. |
+| `chatterFight` | Banter during the fight, now and then. |
+| `chatter` | Banter for both, used when a squadron has no list of its own for that part. How often: settings, *8. Sound* (`AmbientChatter`, `ChatterMinSeconds`, `ChatterMaxSeconds`, `ChatterChance`). |
 
 These words in a line are filled in when it is said:
 

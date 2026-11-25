@@ -91,7 +91,8 @@ public class Plugin : BaseUnityPlugin
     internal static ConfigEntry<float> ThreatBarX;
     internal static ConfigEntry<float> ThreatBarY, ThreatBarScale, ThreatBarRotation;
     internal static ConfigEntry<bool> MusicEnabled, VoiceEnabled, VoiceRadioFilter, RadioSubtitles, ShowSquadronDown;
-    internal static ConfigEntry<float> VoiceVolume;
+    internal static ConfigEntry<float> VoiceVolume, ChatterMinSeconds, ChatterMaxSeconds, ChatterChance;
+    internal static ConfigEntry<bool> ChatterEnabled;
     internal static ConfigEntry<bool> MusicGatesIntro;
     internal static ConfigEntry<float> MaxMusicGateSeconds;
 
@@ -267,6 +268,14 @@ public class Plugin : BaseUnityPlugin
             "cutscene (during the intro), loop (the sortie, looping), outro (aces beaten) and escape (aces withdrew; falls back to outro). " +
             "Put intro.ogg, loop.ogg... (.ogg, .wav or .mp3) in BepInEx/config/NOAcesHigh/Music, or in Music/BDF and Music/PALA for one side's aces, " +
             "or name them in a squadron's \"music\" entry. Missing slots are skipped."));
+        ChatterEnabled = Config.Bind(snd, "AmbientChatter", true, Order(65,
+            "Aces talk now and then without any event to set them off: banter on the way in and during the fight, from a squadron's \"chatterIngress\" / \"chatterFight\" / \"chatter\" lines, or built-in ones. Never during the intro or over another radio line."));
+        ChatterMinSeconds = Config.Bind(snd, "ChatterMinSeconds", 25f,
+            new ConfigDescription("Shortest gap between ambient lines, in seconds.", new AcceptableValueRange<float>(5f, 300f), Attr(64)));
+        ChatterMaxSeconds = Config.Bind(snd, "ChatterMaxSeconds", 60f,
+            new ConfigDescription("Longest gap between ambient lines, in seconds (each gap is picked at random between the two).", new AcceptableValueRange<float>(5f, 600f), Attr(63)));
+        ChatterChance = Config.Bind(snd, "ChatterChance", 0.7f,
+            new ConfigDescription("Chance an ace speaks when a gap ends (so the rhythm is not regular).", new AcceptableValueRange<float>(0f, 1f), Attr(62)));
         VoiceEnabled = Config.Bind(snd, "VoiceLines", true, Order(69,
             "Play recorded radio lines from a squadron's \"voice\" entry (see the squadron README)."));
         VoiceVolume = Config.Bind(snd, "VoiceVolume", 0.8f,
@@ -286,15 +295,18 @@ public class Plugin : BaseUnityPlugin
         Naming = Config.Bind(variants, "Naming", NamingScheme.Random, new ConfigDescription(
             "How random squadrons are named. Classic: Grey Wolves, Viper 1. Team: Vermilion Team of the <faction> Vanguard Squadron, Vermilion I. " +
             "Unit: Umbra Solis, 41st Unit, 3rd Tactical Fighter Wing, Vesper 22. Regiment: Sapsan, 117th Guards Fighter Aviation Regiment, Sapsan 01. " +
-            "Navy: Black Herons, Strike Fighter Squadron 104 (VFA-104), Nomad 201. Handmade squadrons can pick their own with \"naming\".", null, Attr(70)));
+            "Navy: Black Herons, Strike Fighter Squadron 104 (VFA-104), Nomad 201. Mercenary: Sable Company, Sable Aerospace Contractors, Sable 1. " +
+            "Legion: Fulminata, XIII Air Legion, Fulminata I. Guard: The Iron Guard, Presidential Honour Guard Squadron, Lion 1. " +
+            "Experimental: Sigma Flight, Project Nightjar, Sigma 01. Militia: Coast Irregulars, Volunteer Air Group, Drifter 1. Handmade squadrons can pick their own with \"naming\".", null, Attr(70)));
         EmblemStyle = Config.Bind(variants, "EmblemShape", EmblemShape.Match, new ConfigDescription(
-            "Generated emblem for squadrons without artwork. Match picks one that suits the naming (Team: pennant/arrowhead, Unit: shield/crescent...).", null, Attr(60)));
+            "Generated emblem for squadrons without artwork: fourteen frames, the newer eight with one of eight centre motifs. Match picks one that suits the naming (Team: pennant, arrowhead, delta, bolt; Unit: shield, crescent, hexagon, diamond...).", null, Attr(60)));
         CardStyleSetting = Config.Bind(variants, "TitleCard", CardStyle.Match, new ConfigDescription(
             "Intro title card. Caution: faded emblem behind a blinking CAUTION box. Unit: bottom-left emblem and unit caption. " +
             "PwBoss / Stamp / Typewriter: centred card with letterbox. Match picks one that suits the naming.", null, Attr(50)));
         ShotsSetting = Config.Bind(variants, "IntroShots", IntroShots.Random, new ConfigDescription(
             "Camera shot list. Classic: fly-by, orbit, tail. Tails: along the fins. HeadOn: long lens head-on, then from below. " +
-            "Cockpit: over a wingman's canopy. Lead: the lead alone, popping flares. Nose: under the nose, along the fuselage. Distant: extreme long lens, then a beam pass.", null, Attr(40)));
+            "Cockpit: over a wingman's canopy. Lead: the lead alone, popping flares. Nose: under the nose, along the fuselage. Distant: extreme long lens, then a beam pass. " +
+            "Escort: riding behind the lead, a rack focus from a wingman's wingtip, then straight down. Silhouette: against the sun, a push-in to the canopy, the formation from behind. Overhead: straight down, a beam pass, riding behind the lead.", null, Attr(40)));
         Formation = Config.Bind(variants, "Formation", FormationKind.Random, new ConfigDescription(
             "Formation random squadrons spawn, fly in and egress in. Random picks one for the flight size.", null, Attr(30)));
         HoldFormation = Config.Bind(variants, "HoldFormation", true, Order(20,

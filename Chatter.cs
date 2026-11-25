@@ -111,8 +111,12 @@ internal static class Chatter
     /// the host included, plays it as a subtitle; anyone else sees the plain line in the feed.
     /// (Simulated multiplayer goes the same way and sends nothing.)
     /// </summary>
+    /// <summary>When the last radio line went out (ambient chatter keeps clear of it).</summary>
+    internal static float LastLineAt = -999f;
+
     private static void Show(Pending p)
     {
+        LastLineAt = Time.time;
         Plugin.Log.LogInfo($"[radio -> {Factions.Short(p.Audience)}] {p.Speaker}: {p.Text}");
         if (Session.MultiplayerRules)
         {

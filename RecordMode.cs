@@ -173,6 +173,15 @@ internal static class RecordMode
             Application.Quit();
             yield break;
         }
+        if (Environment.GetCommandLineArgs().Any(a => a.Equals("-noahEmblems", StringComparison.OrdinalIgnoreCase)))
+        {
+            try { Emblem.WriteGallery(Path.Combine(outDir, "emblems.png")); Log(outDir, "emblem gallery written"); }
+            catch (Exception ex) { Log(outDir, "emblem gallery failed: " + ex); }
+            File.WriteAllText(Path.Combine(outDir, "ALL-DONE.txt"), DateTime.Now.ToString("O"));
+            yield return new WaitForSecondsRealtime(1f);
+            Application.Quit();
+            yield break;
+        }
         if (Environment.GetCommandLineArgs().Any(a => a.Equals("-noahHud", StringComparison.OrdinalIgnoreCase)))
         {
             yield return HudDemo(aceFrame, banditHQ, outDir);

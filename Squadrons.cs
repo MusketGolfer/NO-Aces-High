@@ -172,41 +172,66 @@ internal static class RandomNames
     {
         "Grey", "Crimson", "Iron", "Silent", "Black", "Golden", "Frozen", "Storm", "Ashen", "Scarlet",
         "Midnight", "Thunder", "Sable", "Burning", "Hollow", "Steel", "Pale", "Shattered", "Cobalt", "Ivory",
+        "Red", "White", "Blue", "Ghost", "Silver", "Dusk", "Dawn", "Northern", "Southern", "Wild", "Savage", "Lone", "Twin",
+        "Crooked", "Broken", "Bleeding", "Laughing", "Howling", "Weeping", "Winter", "Summer", "Bone", "Copper", "Bronze", "Obsidian",
+        "Smoking", "Restless", "Vengeful", "Ancient", "Feral", "Grim", "Lucky", "Nameless", "Cursed", "Blind", "Sleepless",
+        "Iron-Willed", "Sun", "Moon", "Star",
     };
 
     private static readonly string[] Animals =
     {
         "Wolves", "Ravens", "Vipers", "Hounds", "Falcons", "Jackals", "Hornets", "Serpents", "Lions", "Sharks",
         "Owls", "Scorpions", "Panthers", "Mantises", "Condors", "Wyverns", "Stags", "Herons", "Bears", "Spiders",
+        "Hawks", "Eagles", "Kites", "Kestrels", "Ospreys", "Harriers", "Crows", "Magpies", "Shrikes", "Swifts", "Tigers", "Leopards",
+        "Lynxes", "Cobras", "Adders", "Barracudas", "Marlins", "Orcas", "Wasps", "Locusts", "Bats", "Foxes", "Coyotes", "Boars",
+        "Rams", "Bulls", "Mustangs", "Dragons", "Griffins", "Basilisks", "Hydras", "Krakens", "Phoenixes", "Gargoyles", "Banshees",
+        "Valkyries", "Djinn", "Harpies", "Centaurs", "Minotaurs",
     };
 
     private static readonly string[] TitleNouns =
     {
         "Knights", "Shadows", "Reapers", "Wardens", "Hunters", "Ghosts", "Blades", "Saints", "Butchers", "Kings",
+        "Devils", "Angels", "Lords", "Widows", "Furies", "Executioners", "Prophets", "Heralds", "Wolves", "Jackals", "Thieves",
+        "Pilgrims", "Sentinels", "Outlaws", "Phantoms", "Heroes", "Monsters", "Martyrs", "Ravens", "Crows",
     };
 
     private static readonly string[] Places =
     {
         "the North", "the Iron Coast", "the Southern Front", "the Red Sky", "the Frozen Strait", "the Last Line",
         "the Eastern Sea", "the Ash Plains", "the High Desert", "the Storm Belt",
+        "the Western Wall", "the Grey Mountains", "the Salt Flats", "the Burning Coast", "the Silent Valley", "the Black Forest",
+        "the Long Night", "the Broken Isles", "the Northern Lights", "the Cold Front", "the Glass Lakes", "the Red River",
+        "the Dead Sea", "the White Wastes", "the Thunder Coast", "the Twin Peaks", "the Deep South", "the Endless Steppe",
+        "the Sunken City", "the Iron Hills",
     };
 
     private static readonly string[] Callsigns =
     {
         "Viper", "Ghost", "Wolf", "Raven", "Saber", "Talon", "Reaper", "Lancer", "Spectre", "Mamba",
         "Cyclone", "Jester", "Hydra", "Onyx", "Fang", "Warden", "Echo", "Banshee", "Kestrel", "Nomad",
+        "Cobra", "Hammer", "Anvil", "Bandit", "Joker", "Ace", "Rogue", "Shadow", "Blaze", "Frost", "Havoc", "Venom", "Diablo",
+        "Rapier", "Cutlass", "Scimitar", "Halberd", "Mace", "Javelin", "Arrow", "Bolt", "Spike", "Razor", "Scythe", "Thunder",
+        "Typhoon", "Monsoon", "Avalanche", "Volcano", "Meteor", "Comet", "Orbit", "Vector", "Zero", "Static", "Gremlin", "Goblin",
+        "Wraith", "Ronin", "Shogun",
     };
 
     private static readonly string[] FirstNames =
     {
         "Viktor", "Anya", "Marek", "Lena", "Dmitri", "Sasha", "Konrad", "Irina", "Tomas", "Mila",
         "Arkady", "Vera", "Henrik", "Katya", "Oskar", "Nadia", "Emil", "Yelena", "Radek", "Ilse",
+        "Lukas", "Mira", "Stefan", "Petra", "Anton", "Zofia", "Matteo", "Ingrid", "Pavel", "Elsa", "Bruno", "Daria", "Felix",
+        "Greta", "Igor", "Hana", "Jonas", "Leni", "Kasimir", "Olga", "Rafael", "Sonja", "Teodor", "Ursula", "Valentin", "Wanda",
+        "Yuri", "Zara", "Adrian", "Bianca", "Cyril", "Dora", "Edvard", "Freya", "Gustav", "Helena", "Ivo", "Jana", "Karel", "Lidia",
     };
 
     private static readonly string[] LastNames =
     {
         "Halden", "Vasko", "Brenner", "Sokolova", "Kral", "Dragunov", "Lindqvist", "Marchetti", "Novak", "Reyes",
         "Varga", "Orlov", "Stenberg", "Kovac", "Ilyin", "Ferro", "Dvorak", "Zeller", "Morozova", "Haas",
+        "Albrecht", "Bauer", "Castellano", "Dimitrov", "Engel", "Falk", "Grieg", "Horvat", "Ivanova", "Jansen", "Kessler",
+        "Lazar", "Mertens", "Nordin", "Ostrowski", "Petrov", "Quist", "Rasmussen", "Sorensen", "Tanaka", "Ulrich", "Volkov",
+        "Weiss", "Yilmaz", "Zielinski", "Abramov", "Becker", "Costa", "Dahl", "Eriksen", "Fischer", "Gallo", "Hoffmann", "Ivic",
+        "Jovanovic", "Klein", "Lindgren", "Moretti", "Nikolaev", "Okafor",
     };
 
     internal static readonly Dictionary<string, string[]> DefaultLines = new()
@@ -223,6 +248,36 @@ internal static class RandomNames
             "So you're the one. {squadron}, engage.",
             "Command wants you gone. Personally, I just want to see if you're any good.",
             "All flights, this one's mine. Stay on my wing.",
+        },
+        // Ambient banter (AmbientChatter): no event, just the aces talking.
+        ["chatterIngress"] = new[]
+        {
+            "Tighten it up. We do this clean.",
+            "{target}. I've read the reports. Let's see if they're true.",
+            "Weather's good. Good day for it.",
+            "Stay off the radio unless it matters.",
+            "Twenty minutes and we're home. Make them count.",
+            "Feels quiet. I don't like quiet.",
+            "Nobody gets ahead of me on this one.",
+            "{squadron}, check in. ...Good.",
+        },
+        ["chatterFight"] = new[]
+        {
+            "Keep the pressure on. Don't let them breathe.",
+            "That one's good. Better than I expected.",
+            "Watch your six, I'm not losing anyone today.",
+            "Is that all you've got, {target}?",
+            "Stay with me. Don't chase.",
+            "They're getting tired. I can feel it.",
+            "Hah! This is more like it!",
+            "Patience. They'll make a mistake.",
+            "Don't get greedy. Pick your shot.",
+            "{target} flies like they've got something to prove.",
+        },
+        ["chatter"] = new[]
+        {
+            "Stay sharp.",
+            "Eyes open.",
         },
         ["wingmanDown"] = new[]
         {

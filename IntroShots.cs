@@ -23,6 +23,12 @@ internal enum IntroShots
     Nose,
     /// <summary>Extreme long lens from far off, a beam pass on the lead, then the formation side-on.</summary>
     Distant,
+    /// <summary>Riding behind the lead with the wingmen in frame, a rack focus from a wingman's wingtip onto the lead, then straight down on the formation.</summary>
+    Escort,
+    /// <summary>The flight against the sun, a long push-in onto the lead's canopy, then the whole formation from behind.</summary>
+    Silhouette,
+    /// <summary>Straight down on the formation as it turns under the camera, a beam pass, then riding behind the lead.</summary>
+    Overhead,
 }
 
 /// <summary>Title-card designs.</summary>
@@ -48,6 +54,7 @@ internal enum ShotKind
     LeadApproach, LeadFlares, LeadSide,
     NoseClose, SideSlide, FrontWide,
     Distant, BeamPass, BeamWide,
+    ChaseLead, WingmanFocus, TopDown, Silhouette, PushIn,
 }
 
 internal readonly struct Shot
@@ -86,7 +93,7 @@ internal sealed class IntroPlan
 
         IntroShots kind = enc.Shots;
         if (kind == IntroShots.Random) kind = PickShots(enc.AliveCount);
-        if (enc.AliveCount < 2 && kind is IntroShots.Tails or IntroShots.Cockpit) kind = IntroShots.Lead;
+        if (enc.AliveCount < 2 && kind is IntroShots.Tails or IntroShots.Cockpit or IntroShots.Escort) kind = IntroShots.Lead;
         plan.Shots = kind;
         plan.LeadFocus = kind == IntroShots.Lead;
 
@@ -116,6 +123,15 @@ internal sealed class IntroPlan
             case IntroShots.Distant:
                 add(ShotKind.Distant, 3.4f); add(ShotKind.BeamPass, 4.8f); add(ShotKind.BeamWide, 7.8f); plan.CardAt = 4.9f;
                 break;
+            case IntroShots.Escort:
+                add(ShotKind.ChaseLead, 3.2f); add(ShotKind.WingmanFocus, 5.4f); add(ShotKind.TopDown, 7.8f); plan.CardAt = 3.3f;
+                break;
+            case IntroShots.Silhouette:
+                add(ShotKind.Silhouette, 2.8f); add(ShotKind.PushIn, 5.6f); add(ShotKind.FormationRear, 7.8f); plan.CardAt = 5.7f;
+                break;
+            case IntroShots.Overhead:
+                add(ShotKind.TopDown, 3.4f); add(ShotKind.BeamPass, 4.9f); add(ShotKind.ChaseLead, 7.8f); plan.CardAt = 5.0f;
+                break;
             default:
                 plan.Shots = IntroShots.Classic;
                 add(ShotKind.Flyby, 3.0f); add(ShotKind.Orbit, 5.5f); add(ShotKind.TailClose, 7.0f); add(ShotKind.FormationRear, 7.8f);
@@ -129,8 +145,8 @@ internal sealed class IntroPlan
 
     private static IntroShots PickShots(int alive)
     {
-        var pool = new List<IntroShots> { IntroShots.Classic, IntroShots.HeadOn, IntroShots.Lead, IntroShots.Nose, IntroShots.Distant };
-        if (alive >= 2) pool.AddRange(new[] { IntroShots.Tails, IntroShots.Cockpit });
+        var pool = new List<IntroShots> { IntroShots.Classic, IntroShots.HeadOn, IntroShots.Lead, IntroShots.Nose, IntroShots.Distant, IntroShots.Silhouette, IntroShots.Overhead };
+        if (alive >= 2) pool.AddRange(new[] { IntroShots.Tails, IntroShots.Cockpit, IntroShots.Escort });
         return pool[Random.Range(0, pool.Count)];
     }
 
@@ -228,19 +244,29 @@ internal static class ShotCamera
             }
 
             case ShotKind.FormationRear:
-                cam = centre - fwd * size * 7f + up * size * 2.2f - right * size * 1.5f;
-                look = centre;
-                fov = 34f;
+            {
+                // Back far enough for the whole formation, however big; the lens fits it.
+                float back = Mathf.Max(size * 7f, span * 2.8f);
+                cam = centre - fwd * back + up * Mathf.Max(size * 2.2f, span * 0.75f) - right * Mathf.Max(size * 1.5f, span * 0.5f);
+                look = centre + fwd * span * 0.2f;
+                fov = FrameFov(Vector3.Distance(cam, centre), span * 1.05f, 18f, 50f);
                 break;
+            }
 
             case ShotKind.TailPan:
             {
-                // Slide from the lead's fin down the line of fins.
-                float s = ks * (flight.Count - 1);
-                int i0 = Mathf.Clamp(Mathf.FloorToInt(s), 0, flight.Count - 1);
-                int i1 = Mathf.Min(i0 + 1, flight.Count - 1);
+                // Slide along the fins in the order they sit across the formation (left to right as the camera sees
+                // them), on a smooth curve through them, so a finger-four or a box pans as cleanly as an echelon. At
+                // most five fins: past that the pan would whip.
                 Vector3 Tail(Aircraft a) => a.transform.position - fwd * Size(a) * 0.42f + up * Size(a) * 0.22f;
-                Vector3 tail = Vector3.Lerp(Tail(flight[i0]), Tail(flight[i1]), s - i0);
+                var fins = flight.OrderBy(a => Vector3.Dot(a.transform.position - centre, right)).Select(Tail).ToList();
+                if (fins.Count > 5)
+                {
+                    int leadIdx = flight.Take(1).Select(l => fins.IndexOf(Tail(l))).First();
+                    int from = Mathf.Clamp(leadIdx - 2, 0, fins.Count - 5);
+                    fins = fins.GetRange(from, 5);
+                }
+                Vector3 tail = fins.Count == 1 ? fins[0] : Spline(fins, ks);
                 cam = tail - fwd * size * 0.75f - right * size * 0.55f + up * size * 0.02f;
                 look = tail + fwd * size * 0.6f + right * size * 0.45f;
                 fov = 48f;
@@ -355,6 +381,67 @@ internal static class ShotCamera
                 fov = 38f;
                 break;
 
+            case ShotKind.ChaseLead:
+            {
+                // Riding behind and above the lead at its speed, easing in, the wingmen sliding about the frame.
+                float back = Mathf.Lerp(2.3f, 1.7f, ks);
+                cam = p - fwd * size * back + up * size * 0.42f + right * size * 0.2f;
+                look = p + fwd * size * 3f + (centre - p) * 0.35f;
+                fov = Mathf.Max(48f, FrameFov(Vector3.Distance(cam, centre), span * 0.6f, 40f, 65f));
+                break;
+            }
+
+            case ShotKind.WingmanFocus:
+            {
+                // From just off a wingman's wingtip: its canopy first, then the lens swings onto the lead.
+                Aircraft w = flight.Count > 1 ? flight[1] : lead;
+                float ws = Size(w);
+                Vector3 wf = w.transform.forward, wr = w.transform.right;
+                float sideSign = Vector3.Dot(w.transform.position - p, right) >= 0f ? 1f : -1f;
+                cam = w.transform.position + wr * ws * 0.62f * sideSign - wf * ws * 0.35f + Vector3.up * ws * 0.12f;
+                Vector3 canopy = w.transform.position + wf * ws * 0.25f + w.transform.up * ws * 0.08f;
+                look = Vector3.Lerp(canopy, p + fwd * size * 0.1f, Smooth(Mathf.InverseLerp(0.25f, 0.8f, k)));
+                camUp = Vector3.Slerp(w.transform.up, Vector3.up, 0.5f);
+                fov = Mathf.Lerp(55f, 32f, Smooth(Mathf.InverseLerp(0.25f, 0.9f, k)));
+                break;
+            }
+
+            case ShotKind.TopDown:
+            {
+                // Straight down on the formation, turning slowly, high enough to hold all of it.
+                cam = centre + Vector3.up * Mathf.Max(size * 6f, span * 2.6f) + fwd * span * 0.15f;
+                look = centre;
+                camUp = Quaternion.AngleAxis(Mathf.Lerp(-18f, 18f, ks), Vector3.up) * fwd;
+                fov = FrameFov(Vector3.Distance(cam, centre), span * 1.1f, 20f, 65f);
+                break;
+            }
+
+            case ShotKind.Silhouette:
+            {
+                // The flight between the camera and the sun, low lens, a slight drift.
+                Vector3 toSun = SunDirection();
+                if (fresh)
+                {
+                    Vector3 away = -toSun; // camera on the far side of the flight from the sun
+                    away.y = Mathf.Min(away.y, -0.08f); // a little below, looking up into it
+                    _fixedPoint = (centre + away.normalized * Mathf.Max(span * 5f, size * 22f) + fwd * travel * 0.5f).ToGlobalPosition();
+                }
+                cam = _fixedPoint.ToLocalPosition();
+                look = centre;
+                fov = FrameFov(Vector3.Distance(cam, centre), span * 1.2f, 6f, 45f);
+                break;
+            }
+
+            case ShotKind.PushIn:
+            {
+                // A long, slow push from off the lead's front quarter onto its canopy.
+                float far = Mathf.Lerp(9f, 1.15f, ks);
+                cam = p + (fwd * 0.55f + right * 0.8f + up * 0.18f).normalized * size * far;
+                look = p + fwd * size * 0.25f + up * size * 0.08f;
+                fov = Mathf.Lerp(28f, 50f, ks);
+                break;
+            }
+
             default: // BeamWide
                 cam = centre + right * span * 2.2f + fwd * span * Mathf.Lerp(0.7f, 0.4f, ks) + up * span * 0.2f;
                 look = centre;
@@ -368,6 +455,27 @@ internal static class ShotCamera
 
         frame = new Frame { Position = cam, LookAt = look, Up = camUp, Fov = fov };
         return true;
+    }
+
+    /// <summary>Catmull-Rom through the points, t from 0 (first) to 1 (last): smooth speed and direction through each point.</summary>
+    private static Vector3 Spline(List<Vector3> pts, float t)
+    {
+        int n = pts.Count;
+        float s = Mathf.Clamp01(t) * (n - 1);
+        int i = Mathf.Min(Mathf.FloorToInt(s), n - 2);
+        float u = s - i;
+        Vector3 p0 = pts[Mathf.Max(i - 1, 0)], p1 = pts[i], p2 = pts[i + 1], p3 = pts[Mathf.Min(i + 2, n - 1)];
+        return 0.5f * (2f * p1 + (p2 - p0) * u + (2f * p0 - 5f * p1 + 4f * p2 - p3) * u * u + (3f * p1 - p0 - 3f * p2 + p3) * u * u * u);
+    }
+
+    /// <summary>Direction towards the sun (the scene's main light), or a high westerly sky if there is none.</summary>
+    private static Vector3 SunDirection()
+    {
+        var sun = RenderSettings.sun;
+        if (sun != null) return -sun.transform.forward;
+        foreach (var l in Object.FindObjectsOfType<Light>())
+            if (l.type == LightType.Directional) return -l.transform.forward;
+        return new Vector3(-0.6f, 0.5f, 0.2f).normalized;
     }
 
     internal static float Size(Aircraft a) => Mathf.Max(a.definition.length, a.definition.width, 10f);

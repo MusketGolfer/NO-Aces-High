@@ -15,6 +15,14 @@ internal enum EmblemShape
     Arrowhead,
     Wings,
     Crescent,
+    Diamond,
+    Hexagon,
+    Delta,
+    Cross,
+    Sunburst,
+    Tab,
+    Bolt,
+    Spade,
 }
 
 /// <summary>A squadron emblem: one texture, or a frame sequence played at a fixed rate.</summary>
@@ -105,8 +113,24 @@ internal sealed class Emblem
 
         const int size = 256;
         var tex = new Texture2D(size, size, TextureFormat.RGBA32, mipChain: true) { name = "emblem:" + squadronName };
+        var px = Paint(Seed(squadronName), colour, shape, side, size);
+        tex.SetPixels32(px);
+        tex.Apply(updateMipmaps: true, makeNoLongerReadable: true);
+        tex.wrapMode = TextureWrapMode.Clamp;
+        tex.filterMode = FilterMode.Trilinear;
+        UnityEngine.Object.DontDestroyOnLoad(tex);
+
+        var emblem = new Emblem { Frames = new[] { tex }, Generated = true };
+        GeneratedCache[key] = emblem;
+        return emblem;
+    }
+
+    /// <summary>The emblem's pixels (row 0 at the bottom), for a seed, colour, shape and side.</summary>
+    internal static Color32[] Paint(int seed, Color colour, EmblemShape shape, Side side, int size)
+    {
+        if (shape == EmblemShape.Match) shape = EmblemShape.Roundel;
         var px = new Color32[size * size];
-        var painter = new Painter(Seed(squadronName), colour, 2f / size * 1.2f, side);
+        var painter = new Painter(seed, colour, 2f / size * 1.2f, side);
 
         for (int y = 0; y < size; y++)
         for (int x = 0; x < size; x++)
@@ -120,18 +144,48 @@ internal sealed class Emblem
                 EmblemShape.Arrowhead => painter.Arrowhead(uv),
                 EmblemShape.Wings => painter.Wings(uv),
                 EmblemShape.Crescent => painter.Crescent(uv),
+                EmblemShape.Diamond => painter.Diamond(uv),
+                EmblemShape.Hexagon => painter.Hexagon(uv),
+                EmblemShape.Delta => painter.Delta(uv),
+                EmblemShape.Cross => painter.Cross(uv),
+                EmblemShape.Sunburst => painter.Sunburst(uv),
+                EmblemShape.Tab => painter.Tab(uv),
+                EmblemShape.Bolt => painter.BoltRoundel(uv),
+                EmblemShape.Spade => painter.Spade(uv),
                 _ => painter.Roundel(uv),
             };
         }
-        tex.SetPixels32(px);
-        tex.Apply(updateMipmaps: true, makeNoLongerReadable: true);
-        tex.wrapMode = TextureWrapMode.Clamp;
-        tex.filterMode = FilterMode.Trilinear;
-        UnityEngine.Object.DontDestroyOnLoad(tex);
+        return px;
+    }
 
-        var emblem = new Emblem { Frames = new[] { tex }, Generated = true };
-        GeneratedCache[key] = emblem;
-        return emblem;
+    /// <summary>Record mode: every shape (rows) with every centre motif (columns) in one PNG.</summary>
+    internal static void WriteGallery(string path)
+    {
+        var shapes = ((EmblemShape[])Enum.GetValues(typeof(EmblemShape))).Where(s => s != EmblemShape.Match).ToArray();
+        const int cell = 128, cols = 8;
+        var sheet = new Texture2D(cols * cell, shapes.Length * cell, TextureFormat.RGBA32, false);
+        var bg = new Color32[cols * cell * shapes.Length * cell];
+        for (int i = 0; i < bg.Length; i++) bg[i] = new Color32(30, 34, 42, 255);
+        sheet.SetPixels32(bg);
+        var colours = new[] { new Color(0.78f, 0.16f, 0.14f), new Color(0.20f, 0.42f, 0.80f), new Color(0.86f, 0.70f, 0.28f), new Color(0.20f, 0.62f, 0.45f) };
+        for (int row = 0; row < shapes.Length; row++)
+        for (int col = 0; col < cols; col++)
+        {
+            int seed = (col << 8) | (row * 37 + col * 11) & 0xFF | ((col & 1) << 6);
+            var px = Paint(seed, colours[(row + col) % colours.Length], shapes[row], row % 2 == 0 ? Side.BDF : Side.PALA, cell);
+            for (int y = 0; y < cell; y++)
+            for (int x = 0; x < cell; x++)
+            {
+                var c = px[y * cell + x];
+                if (c.a == 0) continue;
+                var under = sheet.GetPixel(col * cell + x, (shapes.Length - 1 - row) * cell + y);
+                float a = c.a / 255f;
+                sheet.SetPixel(col * cell + x, (shapes.Length - 1 - row) * cell + y, Color.Lerp(under, (Color)c, a));
+            }
+        }
+        sheet.Apply();
+        System.IO.File.WriteAllBytes(path, sheet.EncodeToPNG());
+        UnityEngine.Object.Destroy(sheet);
     }
 
     internal static int Seed(string text) => (text ?? "").Aggregate(17, (h, c) => unchecked(h * 31 + c)) & 0x7fffffff;
@@ -320,6 +374,178 @@ internal sealed class Emblem
             c = Over(c, _main, Cover(moon));
             c = Over(c, White, Cover(Poly((m - new Vector2(0.28f, 0.1f)) / 0.22f, Bit(5) ? _star5 : _star8) * 0.22f));
             return c;
+        }
+
+        // ---- frames with a shared centre motif (eight frames x eight motifs) ----
+
+        // The jet silhouette and the bolt, built once.
+        private static readonly Vector2[] JetShape =
+        {
+            new(0f, 0.95f), new(0.07f, 0.55f), new(0.08f, 0.2f), new(0.62f, -0.18f), new(0.62f, -0.3f), new(0.09f, -0.18f),
+            new(0.08f, -0.55f), new(0.28f, -0.72f), new(0.28f, -0.82f), new(0f, -0.74f), new(-0.28f, -0.82f), new(-0.28f, -0.72f),
+            new(-0.08f, -0.55f), new(-0.09f, -0.18f), new(-0.62f, -0.3f), new(-0.62f, -0.18f), new(-0.08f, 0.2f), new(-0.07f, 0.55f),
+        };
+        private static readonly Vector2[] BoltShape =
+        {
+            new(0.18f, 0.95f), new(-0.42f, 0.02f), new(-0.04f, 0.02f), new(-0.22f, -0.95f), new(0.44f, 0.12f), new(0.06f, 0.12f),
+        };
+
+        /// <summary>One of eight centre motifs (picked by the seed's bits 8-10), at the given scale, over c.</summary>
+        private Color Motif(Color c, Vector2 p, float s, Color ink, Color accent)
+        {
+            var q = p / s;
+            switch ((_seed >> 8) & 7)
+            {
+                case 0: return Over(c, ink, Cover(Poly(q, _star5) * s));
+                case 1: return Over(c, ink, Cover(Poly(q, _star8) * s));
+                case 2:
+                    for (int k = 0; k < 3; k++)
+                    {
+                        var v = q - new Vector2(0f, 0.45f - k * 0.45f);
+                        float chev = Mathf.Abs(Mathf.Abs(v.x) * 0.8f + v.y) - 0.1f;
+                        c = Over(c, k == 0 ? accent : ink, Cover(Mathf.Max(chev, Mathf.Abs(v.x) - 0.85f) * s));
+                    }
+                    return c;
+                case 3: return Over(c, ink, Cover(Poly(q, BoltShape) * s));
+                case 4: // crossed swords
+                    for (int side = -1; side <= 1; side += 2)
+                    {
+                        var v = Rot(q, side * 38f);
+                        c = Over(c, ink, Cover(Box(v - new Vector2(0f, 0.1f), new Vector2(0.06f, 0.8f)) * s));
+                        c = Over(c, accent, Cover(Box(v - new Vector2(0f, -0.52f), new Vector2(0.24f, 0.05f)) * s));
+                    }
+                    return c;
+                case 5: return Over(c, ink, Cover(Poly(q, JetShape) * s));
+                case 6:
+                {
+                    float moon = Mathf.Max(q.magnitude - 0.85f, 0.7f - (q - new Vector2(0.32f, 0.16f)).magnitude);
+                    c = Over(c, ink, Cover(moon * s));
+                    return Over(c, accent, Cover(Poly((q - new Vector2(0.3f, 0.14f)) / 0.3f, _star5) * 0.3f * s));
+                }
+                default:
+                {
+                    float r = q.magnitude;
+                    c = Over(c, ink, Cover((Mathf.Abs(r - 0.7f) - 0.12f) * s));
+                    return Over(c, accent, Cover((r - 0.28f) * s));
+                }
+            }
+        }
+
+        public Color Diamond(Vector2 p)
+        {
+            Color c = Color.clear;
+            float d = (Mathf.Abs(p.x) / 0.78f + Mathf.Abs(p.y) / 0.96f - 1f) * 0.6f;
+            c = Over(c, _gold, Cover(d));
+            c = Over(c, _dark, Cover(d + 0.04f));
+            float inner = (Mathf.Abs(p.x) / 0.62f + Mathf.Abs(p.y) / 0.78f - 1f) * 0.5f;
+            c = Over(c, _main, Cover(Mathf.Abs(inner) - 0.012f));
+            if (Bit(6)) c = Over(c, _main, Cover(Mathf.Max(inner, Mathf.Abs(p.y) - 0.06f)), 0.5f);
+            return Motif(c, p, 0.4f, White, _gold);
+        }
+
+        public Color Hexagon(Vector2 p)
+        {
+            Color c = Color.clear;
+            var a = new Vector2(Mathf.Abs(p.x), Mathf.Abs(p.y));
+            float hex = Mathf.Max(a.x * 0.866f + a.y * 0.5f, a.y) - 0.86f;
+            c = Over(c, _main, Cover(hex));
+            c = Over(c, Ink, Cover(hex + 0.07f));
+            c = Over(c, _main, Cover(Mathf.Abs(hex + 0.16f) - 0.012f));
+            if (Bit(6))
+                for (int k = 0; k < 6; k++)
+                {
+                    float ang = k * Mathf.PI / 3f;
+                    var v = p - new Vector2(Mathf.Cos(ang), Mathf.Sin(ang)) * 0.62f;
+                    c = Over(c, _main, Cover(v.magnitude - 0.035f));
+                }
+            return Motif(c, p, 0.42f, White, _main);
+        }
+
+        public Color Delta(Vector2 p)
+        {
+            Color c = Color.clear;
+            var tri = new Vector2[] { new(0f, 0.95f), new(0.86f, -0.6f), new(-0.86f, -0.6f) };
+            float t = Poly(p, tri);
+            c = Over(c, White, Cover(t));
+            c = Over(c, _main, Cover(t + 0.05f));
+            c = Over(c, _dark, Cover(Poly(p * 1.22f + new Vector2(0f, 0.08f), tri) / 1.22f));
+            if (Bit(6)) c = Over(c, White, Cover(Mathf.Max(Mathf.Abs(p.y + 0.42f) - 0.03f, t + 0.08f)));
+            return Motif(c, p - new Vector2(0f, -0.08f), 0.34f, White, _gold);
+        }
+
+        public Color Cross(Vector2 p)
+        {
+            Color c = Color.clear;
+            // A cross pattee: four flared arms.
+            float best = 9f;
+            for (int k = 0; k < 4; k++)
+            {
+                var v = Rot(p, k * 90f);
+                var arm = new Vector2[] { new(0f, 0.12f), new(0.42f, 0.95f), new(-0.42f, 0.95f) };
+                best = Mathf.Min(best, Poly(v, arm));
+            }
+            float body = Mathf.Min(best, p.magnitude - 0.3f);
+            c = Over(c, _gold, Cover(body));
+            c = Over(c, _dark, Cover(body + 0.05f));
+            c = Over(c, _main, Cover(p.magnitude - 0.34f));
+            c = Over(c, _gold, Cover(Mathf.Abs(p.magnitude - 0.34f) - 0.014f));
+            return Motif(c, p, 0.22f, White, _gold);
+        }
+
+        public Color Sunburst(Vector2 p)
+        {
+            Color c = Color.clear;
+            float r = p.magnitude, ang = Mathf.Atan2(p.y, p.x);
+            int rays = Bit(6) ? 16 : 12;
+            float ray = Mathf.Abs(Mathf.Sin(ang * rays * 0.5f));
+            float rayLen = 0.62f + (1f - ray) * 0.34f;
+            c = Over(c, _main, Cover((r - rayLen) * 0.6f));
+            c = Over(c, _gold, Cover(r - 0.6f));
+            c = Over(c, _dark, Cover(r - 0.54f));
+            return Motif(c, p, 0.36f, _gold, White);
+        }
+
+        public Color Tab(Vector2 p)
+        {
+            Color c = Color.clear;
+            // A rounded rectangle patch with diagonal stripes behind the motif.
+            float box = Box(p, new Vector2(0.86f, 0.62f)) - 0.1f;
+            c = Over(c, _gold, Cover(box));
+            c = Over(c, _dark, Cover(box + 0.05f));
+            for (int k = -3; k <= 3; k++)
+            {
+                float stripe = Mathf.Abs((p.x - p.y * 0.7f) - k * 0.32f) - 0.06f;
+                c = Over(c, _main, Cover(Mathf.Max(stripe, box + 0.05f)), 0.55f);
+            }
+            c = Over(c, _dark, Cover(p.magnitude - 0.42f));
+            c = Over(c, _gold, Cover(Mathf.Abs(p.magnitude - 0.42f) - 0.014f));
+            return Motif(c, p, 0.3f, White, _main);
+        }
+
+        public Color BoltRoundel(Vector2 p)
+        {
+            Color c = Color.clear;
+            float r = p.magnitude;
+            c = Over(c, Ink, Cover(r - 0.95f), 0.9f);
+            c = Over(c, _main, Cover(Mathf.Abs(r - 0.86f) - 0.04f));
+            var b = Rot(p, Bit(6) ? 12f : -12f) / 0.8f;
+            c = Over(c, White, Cover(Poly(b, BoltShape) * 0.8f - 0.03f));
+            c = Over(c, _main, Cover(Poly(b, BoltShape) * 0.8f));
+            return Motif(c, p - new Vector2(0.48f, 0.48f), 0.16f, White, _gold);
+        }
+
+        public Color Spade(Vector2 p)
+        {
+            Color c = Color.clear;
+            // Two lobes and a point make the spade; a small foot below.
+            var a = new Vector2(Mathf.Abs(p.x), p.y);
+            float lobe = (a - new Vector2(0.36f, -0.08f)).magnitude - 0.38f;
+            float point = Poly(p, new Vector2[] { new(0f, 0.95f), new(0.66f, 0.05f), new(-0.66f, 0.05f) });
+            float foot = Poly(p, new Vector2[] { new(0f, -0.2f), new(0.26f, -0.9f), new(-0.26f, -0.9f) });
+            float spade = Mathf.Min(Mathf.Min(lobe, point), foot);
+            c = Over(c, _gold, Cover(spade));
+            c = Over(c, Ink, Cover(spade + 0.05f));
+            return Motif(c, p - new Vector2(0f, 0.12f), 0.32f, _main, _gold);
         }
 
         // ---- helpers ----
