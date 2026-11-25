@@ -16,8 +16,8 @@ internal static class AceSpawner
 
     /// <summary>Record mode: spawn at exactly this altitude (normal spawns never go below 3,000 m).</summary>
     internal static float? TestAltitude;
-    private static readonly float[] TierSkill = { 1.5f, 2.0f, 2.5f };
-    private static readonly float[] TierBravery = { 0.8f, 0.9f, 1.0f };
+    private static readonly float[] TierSkill = { 1.5f, 2.0f, 2.5f, 3.2f };
+    private static readonly float[] TierBravery = { 0.8f, 0.9f, 1.0f, 1.0f };
 
     // Accent colours for squadrons that do not set one: muted military tones plus a few loud ones.
     private static readonly Color[] Palette =
@@ -98,7 +98,7 @@ internal static class AceSpawner
 
         int maxTier = Mathf.Clamp(Plugin.MaxTier.Value, 1, 3);
         int tier = Mathf.Clamp(def.Tier ?? Mathf.Min(maxTier, Random.Range(1, maxTier + 1) + encounterIndex), 1, maxTier);
-        if (def.Tier.HasValue) tier = Mathf.Clamp(def.Tier.Value, 1, 3);
+        if (def.Tier.HasValue) tier = Mathf.Clamp(def.Tier.Value, 1, def.Tier.Value == 4 ? 4 : 3);
 
         // Naming: a handmade squadron that names itself and picks no scheme keeps the plain classic style, so a
         // random scheme does not bolt an organisation onto it.

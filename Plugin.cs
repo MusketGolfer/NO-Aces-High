@@ -368,6 +368,7 @@ public class Plugin : BaseUnityPlugin
         try
         {
             Encounters.Tick();
+            AcePilotStart.Tick();
         }
         catch (Exception ex)
         {

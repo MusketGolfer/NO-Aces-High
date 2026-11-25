@@ -94,6 +94,7 @@ internal static class Encounters
     private static readonly Dictionary<Aircraft, EgressInfo> Egressing = new();
 
     internal static bool IsAce(Unit unit) => unit is Aircraft a && AceAircraft.Contains(a);
+    internal static IEnumerable<Aircraft> AllAces => AceAircraft;
 
     /// <summary>Tier and wingman number (0 = lead, 1.. = wingmen in squadron order) of a fighting ace.</summary>
     internal static bool TryGetAce(Aircraft aircraft, out int tier, out int wingman)

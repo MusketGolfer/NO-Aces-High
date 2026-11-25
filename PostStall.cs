@@ -115,7 +115,10 @@ internal static class PostStall
         {
             Aircraft a = StateAircraft(__instance);
             if (FlightTest.IsSubject(a)) return false; // a test jet never bails out mid-test
-            if (!IsManoeuvring(a)) return true;
+            // Jets built to point past 90 deg (a profile with an AoA limit of 90 or more, like the PW-Mk1) do it outside
+            // the manoeuvres too, so for them the "flying backwards" rule never applies.
+            bool pointer = Encounters.IsAce(a) && AirframeProfiles.For(a) is { AlphaLimit: >= 90f };
+            if (!IsManoeuvring(a) && !pointer) return true;
             if (a.partDamageTracker != null && a.partDamageTracker.GetDetachedRatio() > 0.12f) return true;
             return a.radarAlt < 40f; // near the ground the stock checks stand
         }
@@ -229,7 +232,7 @@ internal static class PostStall
             try { a.weaponManager?.FireGuns(); } catch { /* no guns */ }
             return;
         }
-        float cone = tier >= 3 ? 12f : 8f;
+        float cone = tier >= 4 ? 16f : tier >= 3 ? 12f : 8f;
         if (bestOff > cone || a.weaponStations == null) return;
         foreach (var station in a.weaponStations)
         {
@@ -244,7 +247,7 @@ internal static class PostStall
                 wm.AddTargetList(best);
                 wm.SetActiveStation(station.Number);
                 wm.Fire();
-                NextRiposte[a] = now + (tier >= 3 ? 2.5f : 4f);
+                NextRiposte[a] = now + (tier >= 4 ? 1.5f : tier >= 3 ? 2.5f : 4f);
                 if (run != null) { run.MissileFired = true; run.NextMissile = now + 2.5f; }
                 RipostesFired++;
                 Plugin.Log.LogInfo($"{Callsign(a)}: riposte during {doing}, {info.weaponName} at {bestDist:0} m, {bestOff:0.0} deg off the nose.");
@@ -309,7 +312,7 @@ internal static class PostStall
         catch { return false; }
     }
 
-    private static float TierScale(int tier) => tier switch { <= 1 => 0.6f, 2 => 0.8f, _ => 1f };
+    private static float TierScale(int tier) => tier switch { <= 1 => 0.6f, 2 => 0.8f, 3 => 1f, _ => 1.2f };
 
     private static bool Ready(Aircraft a, Manoeuvre m) => !Cooldown.TryGetValue((a, m), out var until) || Time.time >= until;
 

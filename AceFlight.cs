@@ -88,7 +88,7 @@ internal static class AceFlight
             bool lift = Plugin.LiftLimiter.Value && tier >= 2 && aircraft.radarAlt >= LowFloor && !IntroOnCamera();
             if (lift)
             {
-                float wanted = Mathf.Max(stock, tier >= 3 ? Plugin.Tier3G.Value : Plugin.Tier2G.Value);
+                float wanted = Mathf.Max(stock, tier >= 4 ? Plugin.Tier3G.Value * 1.3f : tier >= 3 ? Plugin.Tier3G.Value : Plugin.Tier2G.Value);
                 if (s == null) g = wanted;
                 else if (s.BreakAt(aircraft.speed) > 0f) g = Mathf.Clamp(s.BreakAt(aircraft.speed) * StructureMargin, stock, wanted);
                 if (tier >= 3 && g > stock) a = Mathf.Max(alpha, Plugin.Tier3Alpha.Value);

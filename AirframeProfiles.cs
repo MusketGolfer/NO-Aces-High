@@ -53,6 +53,9 @@ internal sealed class AirframeProfile
     public bool PostStallSuits = true;  // low-speed authority good enough for the post-stall manoeuvres
     public bool JoustAverse;            // loses head-on missile fights: cranks off the bandit's nose instead (PostStall.TryCrank)
     public string Notes = "";
+    /// <summary>Set (with a reason) on a profile entered by hand in airframe-profiles.json: its Vectoring and AlphaLimit
+    /// then override what is read from the aircraft too (for add-on jets whose own control law the survey cannot fly).</summary>
+    public string HandSet;
 }
 
 internal static class AirframeProfiles
@@ -82,11 +85,17 @@ internal static class AirframeProfiles
             p.PeakG = m.PeakG;
             p.MaxTurnAoA = m.MaxTurnAoA;
             p.Departs = m.Departs;
+            if (!string.IsNullOrEmpty(m.HandSet))
+            {
+                p.HandSet = m.HandSet;
+                p.Vectoring = m.Vectoring;
+                if (m.AlphaLimit > 0f) p.AlphaLimit = m.AlphaLimit;
+            }
         }
         else Estimate(p);
         Derive(p);
         Cache[key] = p;
-        Plugin.Log.LogInfo($"Airframe profile {p.Name}: {(p.Measured ? "measured" : "estimated")} {p.Style}; turn {p.SustainedTurn:0.0} deg/s, " +
+        Plugin.Log.LogInfo($"Airframe profile {p.Name}: {(p.HandSet != null ? "hand-set" : p.Measured ? "measured" : "estimated")} {p.Style}; turn {p.SustainedTurn:0.0} deg/s, " +
                            $"bleed {p.TurnBleed:0.0} m/s2, accel {p.Accel:0.0} m/s2, roll {p.RollRate:0} deg/s, T/W {p.ThrustToWeight:0.00}, " +
                            $"wing load {p.WingLoading:0} kg/m2. {p.Notes}");
         return p;
