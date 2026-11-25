@@ -90,8 +90,19 @@ internal static class AceFlight
             {
                 float wanted = Mathf.Max(stock, tier >= 3 ? Plugin.Tier3G.Value : Plugin.Tier2G.Value);
                 if (s == null) g = wanted;
-                else if (s.BreakG > 0f) g = Mathf.Clamp(s.BreakG * StructureMargin, stock, wanted);
+                else if (s.BreakAt(aircraft.speed) > 0f) g = Mathf.Clamp(s.BreakAt(aircraft.speed) * StructureMargin, stock, wanted);
                 if (tier >= 3 && g > stock) a = Mathf.Max(alpha, Plugin.Tier3Alpha.Value);
+            }
+            // The stock limit is no guarantee either: a Compass allows 8 g but sheds its wings near 4.5 g at 950 km/h.
+            // Whoever is flying (the stock AI or ours), an ace never asks for more than the airframe takes at this speed.
+            // Heading for the ground (under 8 s to impact), it may use most of what the wings take: losing a wing
+            // and hitting the ground both end the same way, but a hard pull usually saves it.
+            if (s != null && s.BreakAt(aircraft.speed) > 0f)
+            {
+                float sink = aircraft.rb != null ? -aircraft.rb.velocity.y : 0f;
+                bool groundRush = sink > 1f && aircraft.radarAlt / sink < 8f;
+                float margin = groundRush ? 0.9f : StructureMargin;
+                g = Mathf.Min(g, Mathf.Max(groundRush ? 4f : MinG, s.BreakAt(aircraft.speed) * margin));
             }
             if (s != null && s.Stress > Emergency && aircraft.gForce > 1f)
             {
@@ -113,14 +124,32 @@ internal static class AceFlight
     // ---- Structure ----------------------------------------------------------------------------------
 
     private const float StructureMargin = 0.7f; // fly at most this share of the estimated break g (the same margin as SafeG)
-    private const float Emergency = 0.8f;       // joint load share at which the governor pulls back
+    private const float Emergency = 0.65f;      // joint load share at which the governor pulls back
+    private const float MinG = 3f;              // never cap an ace below this (it has to be able to pull out of a dive)
+    private const float SpeedRef = 220f;        // m/s (790 km/h); readings slower than this count as taken at it
 
+    /// <summary>
+    /// Joint load modelled as g x (a + b x speed^2): wing bending grows with g, and at high speed the dynamic pressure
+    /// on the surfaces adds to it, so the same g breaks a jet faster. (Compasses that read 7 g at about 800 km/h shed
+    /// their wings at 4.4-5.2 g at 950-1010 km/h.) Two coefficients, each the worst reading so far: Kg = stress per g,
+    /// and Kq = stress per g per (m/s)^2, with readings below SpeedRef counted at SpeedRef. Until a fast reading
+    /// exists, that makes the jet's limit fall with the square of speed above 790 km/h: cautious, but a jet flying
+    /// that fast does not need to pull hard. Both decay 1% a second, down to 90% of the worst reading (so one spike
+    /// does not cap it for good), and damage raises them.
+    /// </summary>
     private sealed class Structure
     {
         public float Stress;        // highest joint load / break load this frame
-        public float BreakG;        // estimated g at which the weakest joint goes; 0 = no estimate yet
+        public float Kg, Kq, MaxKg, MaxKq;
         public float EstimateTime;
         public bool Logged;
+
+        /// <summary>Estimated g at which the weakest joint goes at this speed (m/s); 0 = no estimate yet.</summary>
+        public float BreakAt(float speed)
+        {
+            float k = Mathf.Max(Kg, Kq * speed * speed);
+            return k > 0f ? 1f / k : 0f;
+        }
     }
 
     private static readonly System.Collections.Generic.Dictionary<Aircraft, Structure> Structures = new();
@@ -161,7 +190,8 @@ internal static class AceFlight
         float g = Plugin.PostStallMaxG.Value;
         if (aircraft != null && Structures.TryGetValue(aircraft, out var s))
         {
-            if (s.BreakG > 0f) g = Mathf.Min(g, s.BreakG * 0.7f);
+            float br = s.BreakAt(aircraft.speed);
+            if (br > 0f) g = Mathf.Min(g, br * StructureMargin);
             if (s.Stress > 0.6f) g *= Mathf.Lerp(1f, 0.5f, Mathf.InverseLerp(0.6f, 0.9f, s.Stress));
         }
         return Mathf.Max(3f, g);
@@ -205,17 +235,24 @@ internal static class AceFlight
         s.Stress = worst;
 
         float now = Time.time;
-        if (s.BreakG > 0f) s.BreakG *= 1f + 0.02f * Mathf.Max(0f, now - s.EstimateTime);
+        float decay = 1f - 0.01f * Mathf.Clamp(now - s.EstimateTime, 0f, 1f);
+        s.Kg = Mathf.Max(s.Kg * decay, s.MaxKg * 0.9f);
+        s.Kq = Mathf.Max(s.Kq * decay, s.MaxKq * 0.9f);
         s.EstimateTime = now;
         if (aircraft.gForce > 2.5f && worst > 0.05f)
         {
-            float estimate = aircraft.gForce / worst;
-            s.BreakG = s.BreakG > 0f ? Mathf.Min(s.BreakG, estimate) : estimate;
+            float v = Mathf.Max(aircraft.speed, SpeedRef);
+            float kg = worst / aircraft.gForce, kq = kg / (v * v);
+            s.Kg = Mathf.Max(s.Kg, kg);
+            s.Kq = Mathf.Max(s.Kq, kq);
+            s.MaxKg = Mathf.Max(s.MaxKg, kg);
+            s.MaxKq = Mathf.Max(s.MaxKq, kq);
             if (!s.Logged)
             {
                 s.Logged = true;
-                Plugin.Log.LogInfo($"{aircraft.definition.unitName} ace structure: joints at {worst:P0} of break load at {aircraft.gForce:0.0} g; " +
-                                   $"break estimated near {s.BreakG:0.0} g, lifted limit capped at {s.BreakG * StructureMargin:0.0} g.");
+                float b800 = s.BreakAt(800f / 3.6f), b1000 = s.BreakAt(1000f / 3.6f);
+                Plugin.Log.LogInfo($"{aircraft.definition.unitName} ace structure: joints at {worst:P0} of break load at {aircraft.gForce:0.0} g, {aircraft.speed * 3.6f:0} km/h; " +
+                                   $"break estimated near {b800:0.0} g at 800 km/h and {b1000:0.0} g at 1000 km/h; limits {b800 * StructureMargin:0.0} g and {Mathf.Max(MinG, b1000 * StructureMargin):0.0} g.");
             }
         }
         return s;

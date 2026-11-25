@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+- **Aces keep their wings.** Aces no longer tear their own wings off in fast, hard pulls; the Compass was the worst
+  offender. The g an ace may pull now falls with speed, since the same g that is safe at 800 km/h snaps a wing at
+  1000 km/h. The cap holds whether the ace or the game's own AI is flying, and the joint-load governor steps in
+  earlier. An ace about to hit the ground may still pull close to the limit.
+- **Why an ace went down.** Every lost ace gets a `Loss:` line in the log: shot down (and by whom), hit by a blast
+  or collision, broke up under its own g, or hit the ground. The line also gives damage credit, speed, height, g and
+  its last hits and lost parts.
+
 ## 1.2.1
 
 - **On NOMM.** NO Aces High is now packaged for the Nuclear Option Mod Manager (NOMNOM registry). Each release also carries

@@ -633,6 +633,7 @@ internal static class Encounters
         foreach (var m in encounter.Members)
         {
             AceAircraft.Add(m.Aircraft);
+            LossLog.Track(m.Aircraft);
             var member = m;
             m.Aircraft.onDisableUnit += _ => OnAceDown(encounter, member);
         }
@@ -707,6 +708,7 @@ internal static class Encounters
         foreach (var m in encounter.Members)
         {
             AceAircraft.Add(m.Aircraft);
+            LossLog.Track(m.Aircraft);
             var member = m;
             m.Aircraft.onDisableUnit += _ => OnAceDown(encounter, member);
         }
@@ -785,6 +787,7 @@ internal static class Encounters
         member.Alive = false;
         AceAircraft.Remove(member.Aircraft);
         Plugin.Log.LogInfo($"Ace down: {member.Callsign} of {enc.SquadronName}");
+        LossLog.Report(member);
         Stats.OnAceDown(enc, member.Aircraft, enc.Tier);
 
         if (enc.AliveCount == 0) return; // the 'defeated' line covers it on the next tick
