@@ -244,7 +244,7 @@ public class Plugin : BaseUnityPlugin
             "Lives inside the UIPlus HUD (its colour and font); a plain bar is drawn instead when that HUD is not showing."));
         ThreatBarX = Config.Bind(hud, "ThreatBarX", 0.5f,
             new ConfigDescription("Threat gauge centre across the screen (0 = left, 1 = right).", new AcceptableValueRange<float>(0f, 1f), Attr(90)));
-        ThreatBarY = Config.Bind(hud, "ThreatBarY", 0.93f,
+        ThreatBarY = Config.Bind(hud, "ThreatBarY", 0.86f,
             new ConfigDescription("Threat gauge centre up the screen (0 = bottom, 1 = top).", new AcceptableValueRange<float>(0f, 1f), Attr(80)));
         ThreatBarScale = Config.Bind(hud, "ThreatBarScale", 1f,
             new ConfigDescription("Threat gauge size (1 = as designed). Also set in UIPlus's Customize HUD Layout screen.", new AcceptableValueRange<float>(0.3f, 3f), Attr(79)));
