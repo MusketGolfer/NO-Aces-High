@@ -9,6 +9,9 @@
 - **Why an ace went down.** Every lost ace gets a `Loss:` line in the log: shot down (and by whom), hit by a blast
   or collision, broke up under its own g, or hit the ground. The line also gives damage credit, speed, height, g and
   its last hits and lost parts.
+- **Add-on jets built only for players can be aces.** Aircraft without the autopilot the game's AI flies through
+  (the PW-Mk1, for one) used to sit with no pilot; aces in them now get one and fight. An airframe profile can be
+  set by hand in `airframe-profiles.json` (mark it with a `HandSet` note) for jets the flight survey cannot measure.
 - **Health bars wait for the intro.** The aces' health bars appear once their intro is over, not while it is queued
   or playing.
 
