@@ -44,6 +44,11 @@ internal static class AceTactics
         Engaged.Clear();
         RetreatChecked.Clear();
         _dark = false;
+        _lastSeen = -999f;
+        _lastSeenBy = null;
+        _wasUnseen = true;
+        Sensors.Clear();
+        _sensorsFor = null;
         _darkChange = _nextDarkCheck = 0f;
         _darkAnnounced = false;
     }
@@ -167,6 +172,56 @@ internal static class AceTactics
     /// without them: from 60 km down to 12 km, nothing fired at them, at least 10 s at a time. They light up when
     /// the track goes stale, inside 12 km, when a missile is in the air at one of them, and stay lit 15 s.
     /// </summary>
+    private const float UnseenSeconds = 4f;
+    private static float _lastSeen = -999f;
+    private static string _lastSeenBy;
+    private static bool _wasUnseen = true;
+    private static readonly List<TargetDetector> Sensors = new();
+    private static float _sensorsListedAt = -999f;
+    private static FactionHQ _sensorsFor;
+
+    /// <summary>The first sensor of <paramref name="hunted"/> that currently detects any of the flight (radar or eyes); null if none.</summary>
+    private static string SeenBy(FactionHQ hunted, List<Aircraft> flight)
+    {
+        if (hunted == null) return null;
+        float now = Time.time;
+        if (_sensorsFor != hunted || now - _sensorsListedAt > 5f)
+        {
+            Sensors.Clear();
+            _sensorsFor = hunted;
+            _sensorsListedAt = now;
+            foreach (var u in UnitRegistry.allUnits)
+                if (u != null && !u.disabled && u.NetworkHQ == hunted)
+                    Sensors.AddRange(u.GetComponentsInChildren<TargetDetector>(true));
+        }
+        // Coverage first: inside a working radars range counts as seen even before its next sweep (a fresh flight
+        // would otherwise go dark in the few seconds before the first scan finds it).
+        foreach (var s in Sensors)
+        {
+            if (s is not Radar r || !r.IsOperational() || r.IsJammed()) continue;
+            float range = r.GetRadarRange();
+            if (range <= 0f) continue;
+            Vector3 at = r.GetScanPoint() != null ? r.GetScanPoint().position : r.transform.position;
+            foreach (var a in flight)
+                if (a != null && (a.transform.position - at).sqrMagnitude < range * range * 0.81f)
+                {
+                    var owner = r.GetAttachedUnit();
+                    return (owner != null && owner.definition != null ? owner.definition.unitName : r.name) + " (in its radar range)";
+                }
+        }
+        foreach (var s in Sensors)
+        {
+            if (s == null || s.detectedTargets == null || s.detectedTargets.Count == 0) continue;
+            foreach (var a in flight)
+                if (a != null && s.detectedTargets.Contains(a))
+                {
+                    var owner = s.GetAttachedUnit();
+                    return owner != null && owner.definition != null ? owner.definition.unitName : s.name;
+                }
+        }
+        return null;
+    }
+
     private static void UpdateDark(ActiveEncounter enc, Aircraft target, List<Aircraft> flight)
     {
         float now = Time.time;
@@ -179,9 +234,16 @@ internal static class AceTactics
             bool tracked = false;
             try { tracked = enc.EnemyHQ.IsTargetBeingTracked(target); } catch { /* no tracking info */ }
             bool fired = flight.Any(a => a.GetMissileWarningSystem() is { } mw && mw.IsWarning());
-            want = tracked && !fired && nearest > DarkMinKm * 1000f && nearest < DarkMaxKm * 1000f;
-            // Lights straight up for danger; otherwise only after the minimum time either way.
-            danger = fired || !tracked || nearest <= DarkMinKm * 1000f;
+            // Dark only hides them if nothing of the hunted side's already sees them: its radars and spotters share
+            // every contact over datalink, so a flight an AWACS or a ground radar is painting stays on the scope
+            // whatever its own radars do. Unseen for a few seconds = switching off really takes them off the scope.
+            string seenBy = SeenBy(enc.TargetHQ, flight);
+            if (seenBy != null) { _lastSeen = now; _lastSeenBy = seenBy; }
+            bool unseen = now - _lastSeen > UnseenSeconds;
+            if (unseen != _wasUnseen) { _wasUnseen = unseen; Plugin.Log.LogInfo($"{enc.SquadronName}: {(unseen ? "no longer seen by the hunted sides sensors" : $"seen by {_lastSeenBy}")}."); }
+            want = tracked && unseen && !fired && nearest > DarkMinKm * 1000f && nearest < DarkMaxKm * 1000f;
+            // Lights straight up for danger (and when spotted anyway); otherwise only after the minimum time either way.
+            danger = fired || !tracked || nearest <= DarkMinKm * 1000f || !unseen;
             if (_dark && danger) want = false;
         }
         if (want == _dark) return;
@@ -190,7 +252,7 @@ internal static class AceTactics
         if (!want && !danger && held < DarkMinHold && Plugin.GoDark.Value && target != null) return; // danger lights up at once
         _dark = want;
         _darkChange = now;
-        Plugin.Log.LogInfo($"{enc.SquadronName}: {(want ? "going dark (radars and jammers off)" : "lighting up")}.");
+        Plugin.Log.LogInfo($"{enc.SquadronName}: {(want ? "going dark (radars and jammers off; no sensor of theirs sees the flight)" : now - _lastSeen <= UnseenSeconds ? $"lighting up (seen anyway, by {_lastSeenBy})" : "lighting up")}.");
         if (want && !_darkAnnounced)
         {
             _darkAnnounced = true;

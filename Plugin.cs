@@ -196,7 +196,7 @@ public class Plugin : BaseUnityPlugin
         RetreatFuel = Config.Bind(tac, "RetreatFuelShare", 0.15f,
             new ConfigDescription("Fuel share at which an ace retreats.", new AcceptableValueRange<float>(0.03f, 0.5f), Attr(4)));
         GoDark = Config.Bind(tac, "GoDark", true, Order(3,
-            "A flight may switch its radars and jammers off on the way in when its side already tracks the target, so the target's radar warner stays quiet; they light up again to shoot a radar missile, when the target is lost, when fired on, or close in."));
+            "A flight may switch its radars and jammers off on the way in, but only when it would really drop off the scope: its side already tracks the target, and no radar or spotter of the hunted side sees the flight or has it inside radar range (AWACS, ships and ground radars share contacts over datalink, so going dark under their coverage would change nothing). They light up again when spotted anyway, to shoot a radar missile, when the target is lost, when fired on, or close in."));
         ParthianShots = Config.Bind(tac, "ParthianShots", true, Order(3,
             "Aces extending away or retreating fire back at a pursuer behind them: radar missiles over the shoulder; post-stall airframes flip the nose round for an infrared shot."));
 

@@ -281,3 +281,12 @@ the config back at the end.
   (`Stats.Medals`), checked after each ace kill and each win; new kill medals are announced over the radio.
 - Record-mode `-noahDownTest`: at 30 s the player is credited (`Unit.RecordDamage`) and the aces disabled
   (`DisableUnit`); `UnitPart.TakeDamage` alone did not bring a jet down.
+
+## 17. Going dark only when it hides them (`AceTactics.SeenBy`)
+
+A side learns of an aircraft three ways: its own sensors (`TargetDetector.DetectTarget` → `RpcUpdateTrackingInfo`, shared
+side-wide), passive location of the aircraft's radar by a warning receiver (`RadarLocator`), and missile warnings. Going
+dark only removes the second. So the flight goes dark only if no hunted-side detector has any ace in `detectedTargets`
+(cleared each scan) and no operating, unjammed hunted-side `Radar` has an ace inside 90% of `GetRadarRange()`, for 4 s;
+being seen (or in coverage) lights them up. Log lines: "seen by <unit>", "no longer seen ...". In Free Flight a carrier
+covers the spawn, so they stay lit; in missions without AWACS or radar coverage near the ingress they go dark.
