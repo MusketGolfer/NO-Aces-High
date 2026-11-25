@@ -256,9 +256,9 @@ public class Plugin : BaseUnityPlugin
             new ConfigDescription("Height of the health bars on screen (0 = bottom, 1 = top).", new AcceptableValueRange<float>(0f, 1f), Attr(89)));
         HealthBarsX = Config.Bind(hud, "SquadronHealthBarsX", 0.5f,
             new ConfigDescription("Centre of the health bars across the screen (0 = left, 1 = right). Also set in UIPlus's Customize HUD Layout screen.", new AcceptableValueRange<float>(0f, 1f), Attr(88)));
-        HealthBarsWidth = Config.Bind(hud, "SquadronHealthBarsWidth", 0.9f,
+        HealthBarsWidth = Config.Bind(hud, "SquadronHealthBarsWidth", 0.66f,
             new ConfigDescription("Width of the row of health bars, as a fraction of the screen width.", new AcceptableValueRange<float>(0.1f, 1f), Attr(87)));
-        HealthBarsScale = Config.Bind(hud, "SquadronHealthBarsScale", 1f,
+        HealthBarsScale = Config.Bind(hud, "SquadronHealthBarsScale", 0.8f,
             new ConfigDescription("Thickness of the bars and size of the squadron name (1 = as designed).", new AcceptableValueRange<float>(0.3f, 3f), Attr(86)));
         HealthBarsRotation = Config.Bind(hud, "SquadronHealthBarsRotation", 0f,
             new ConfigDescription("Rotation of the health bars in degrees, anticlockwise, about their bottom centre.", new AcceptableValueRange<float>(-180f, 180f), Attr(85)));
