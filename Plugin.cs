@@ -15,7 +15,7 @@ public class Plugin : BaseUnityPlugin
 {
     public const string Guid = "NOAcesHigh";
     public const string Name = "NO Aces High";
-    public const string Version = "0.9.7";
+    public const string Version = "1.2.0";
 
     internal static ManualLogSource Log;
     internal static Plugin Instance;
