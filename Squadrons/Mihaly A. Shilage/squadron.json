@@ -66,11 +66,5 @@
     "withdraw": [
       "Enough. I understand you now. We will meet again."
     ]
-  },
-  "music": {
-    "file": "music/Archange - PROJECT ACES.mp3",
-    "intro": "1:00-1:12",
-    "loop": "1:25-3:38",
-    "outro": "3:38-3:59"
   }
 }

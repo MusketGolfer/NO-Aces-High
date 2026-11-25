@@ -8,14 +8,14 @@ using UnityEngine;
 namespace NOAcesHigh;
 
 [BepInPlugin(Guid, Name, Version)]
-[BepInDependency("ArcadeCam", BepInDependency.DependencyFlags.HardDependency)]
-[BepInDependency("UIPlus", BepInDependency.DependencyFlags.HardDependency)]
+[BepInDependency("ArcadeCam", BepInDependency.DependencyFlags.SoftDependency)] // optional: only asked whether its weapon camera is showing
+[BepInDependency("UIPlus", BepInDependency.DependencyFlags.SoftDependency)] // optional: HUD integration; plain IMGUI fallbacks without it
 [BepInDependency("com.nikkorap.blueprinter", BepInDependency.DependencyFlags.SoftDependency)]
 public class Plugin : BaseUnityPlugin
 {
     public const string Guid = "NOAcesHigh";
     public const string Name = "NO Aces High";
-    public const string Version = "1.2.0";
+    public const string Version = "1.2.1";
 
     internal static ManualLogSource Log;
     internal static Plugin Instance;

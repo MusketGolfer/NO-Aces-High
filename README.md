@@ -34,15 +34,22 @@ its own music, and pilots who fly like they mean it.
 | | |
 | --- | --- |
 | [BepInEx 5](https://github.com/BepInEx/BepInEx) (5.4.x) | Required. |
-| **UI Plus** | Required. The threat gauge, health bars and subtitles live in its HUD. |
-| **ArcadeCam** | Required. Used for the intro camera. |
 | **BepInEx Configuration Manager** | Strongly recommended: it is the settings page (F1). |
+| **UI Plus** | Recommended. The threat gauge, health bars and subtitles sit inside its HUD, and can be placed with its *Customize HUD Layout*. Without it they are drawn plainly over the screen. |
+| **ArcadeCam** | Optional. When installed, intros wait while its weapon camera is showing. |
 
 ## Installing
 
-1. Install BepInEx 5, UI Plus and ArcadeCam if you don't have them.
+**With NOMM** (the Nuclear Option Mod Manager): search for *NO Aces High* and install. NOMM sets up BepInEx and the
+Configuration Manager for you.
+
+**By hand:**
+
+1. Install BepInEx 5 (and UI Plus, ArcadeCam and the Configuration Manager if you want them).
 2. Download `NO-Aces-High-<version>.zip` from the [Releases page](https://github.com/MusketGolfer/NO-Aces-High/releases) and extract it into your `Nuclear Option` game folder (the one holding `NuclearOption.exe`). It puts the mod in `BepInEx/plugins/NOAcesHigh/`. When updating, your own squadrons and settings in `BepInEx/config/NOAcesHigh/` are not touched.
 3. Start the game and fly. Settings are under **F1 → NO Aces High**.
+
+(`NOAcesHigh-nomm.zip` on each release is the same mod packed for NOMM, with the files at the top of the archive.)
 
 Your own squadrons, music and settings profiles live in `BepInEx/config/NOAcesHigh/`. That folder is created on
 first run, with a copy of the squadron guide and a template.
@@ -85,8 +92,8 @@ Run together with these mods during development. "Loads fine" means no errors or
 
 | Mod | Notes |
 | --- | --- |
-| UI Plus | Required. Its **MatchMissileIndicators** setting (on by default) changes NO Missile Indicators' style and hides its indicators while UI Plus's missile arcs are showing. Turn it off if you want Missile Indicators' own style. |
-| ArcadeCam | Required. |
+| UI Plus | Recommended. Its **MatchMissileIndicators** setting (on by default) changes NO Missile Indicators style and hides its indicators while UI Pluss missile arcs are showing. Turn it off if you want Missile Indicators own style. |
+| ArcadeCam | Optional. |
 | NO Missile Indicators | Works. See the UI Plus note above. |
 | KR-67 Ifrit FCS, Su-30VXN FCS, Solar Su-30, Aryx F-99 Shrike, Aryx FS-41 Eclipse, F-204 Icarus II, PB-22 Trident, MRB-100 Centurion, AH-31 Kukri, UL-2 Airtrike | Modded aircraft: aces may fly the fixed-wing jets (tick them in *5. Airframes*). Tactics are worked out from each jet's stats. |
 | NOX, Nuclear Option Playable Ground Vehicles | Loads fine. |

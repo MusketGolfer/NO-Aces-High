@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.2.1
+
+- **On NOMM.** NO Aces High is now packaged for the Nuclear Option Mod Manager (NOMNOM registry). Each release also carries
+  `NOAcesHigh-nomm.zip`, the same mod with its files at the top of the archive.
+- **UI Plus and ArcadeCam are now optional.** The mod runs without them: the threat gauge, health bars and subtitles are
+  drawn plainly over the screen when UI Plus isn't installed. With UI Plus, everything works as before.
+- **MISTER X** no longer ships with third-party Ace Combat files: he flies under his own MISTER X emblem and without
+  music. Add your own music to his folder if you have it.
+
 ## 1.2.0
 
 Everything since 1.1 (v0.9.7).

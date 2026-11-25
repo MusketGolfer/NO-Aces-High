@@ -169,6 +169,8 @@ internal static class Chatter
     /// </summary>
     internal static void ApplyUiPlusPatch(HarmonyLib.Harmony harmony)
     {
+        // UI Plus is optional: without it there are no UI Plus subtitles to colour, so nothing to patch (and nothing wrong).
+        if (!BepInEx.Bootstrap.Chainloader.PluginInfos.ContainsKey("UIPlus")) return;
         var hud = HarmonyLib.AccessTools.TypeByName("UIPlus.Helpers.ArcadeHud");
         Patches.Patch(harmony, "red chevrons on enemy subtitles",
             hud != null ? HarmonyLib.AccessTools.Method(hud, "ShowSubtitleText") : null,
