@@ -41,7 +41,7 @@ its own music, and pilots who fly like they mean it.
 ## Installing
 
 1. Install BepInEx 5, UI Plus and ArcadeCam if you don't have them.
-2. Copy the `NOAcesHigh` folder into `Nuclear Option/BepInEx/plugins/`.
+2. Download `NO-Aces-High-<version>.zip` from the [Releases page](https://github.com/MusketGolfer/NO-Aces-High/releases) and extract it into your `Nuclear Option` game folder (the one holding `NuclearOption.exe`). It puts the mod in `BepInEx/plugins/NOAcesHigh/`. When updating, your own squadrons and settings in `BepInEx/config/NOAcesHigh/` are not touched.
 3. Start the game and fly. Settings are under **F1 → NO Aces High**.
 
 Your own squadrons, music and settings profiles live in `BepInEx/config/NOAcesHigh/`. That folder is created on
