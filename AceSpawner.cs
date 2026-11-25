@@ -13,6 +13,9 @@ internal static class AceSpawner
 {
     private const float SpawnSpeed = 230f;      // m/s, fast cruise
     internal const int MaxMembers = 16;
+
+    /// <summary>Record mode: spawn at exactly this altitude (normal spawns never go below 3,000 m).</summary>
+    internal static float? TestAltitude;
     private static readonly float[] TierSkill = { 1.5f, 2.0f, 2.5f };
     private static readonly float[] TierBravery = { 0.8f, 0.9f, 1.0f };
 
@@ -151,7 +154,7 @@ internal static class AceSpawner
         GlobalPosition playerPos = anchor;
         Vector3 fromDir = DirectionToNearestBase(enemy, playerPos);
         float distance = distanceOverride ?? Plugin.SpawnDistanceKm.Value * 1000f;
-        float altitude = Mathf.Clamp(playerPos.y + 1000f, 3000f, 9000f);
+        float altitude = TestAltitude ?? Mathf.Clamp(playerPos.y + 1000f, 3000f, 9000f);
         // Not on top of the hunted side's ships, air defences, bases or aircraft (a set test distance is left alone).
         if (distanceOverride == null) SafeSpawn(targetHQ, playerPos, ref fromDir, ref distance);
         GlobalPosition leadPos = playerPos + fromDir * distance;

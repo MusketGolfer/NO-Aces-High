@@ -52,6 +52,10 @@ internal static class RecordMode
         public bool BanditNearWingman;
         public float Fuel = -1f;       // set the aces' fuel share at the start (retreat tests)
         public bool EmptyWeapons;      // empty every weapon station at the start (winchester test)
+        public float AltitudeAgl;      // start this high above the ground below (0: the usual 3,000 m)
+        public float ForceKulbitWithin; // staged: the ace flies Staged when the bandit closes inside this range (metres)
+        public Manoeuvre Staged = Manoeuvre.Kulbit;
+        public bool BanditNoFlares;     // staged: the bandit carries no flares, so the shot lands
     }
 
     private static readonly Scenario[] Scenarios =
@@ -86,6 +90,16 @@ internal static class RecordMode
                 Expect = "bingo call and a run for the edge, with a radar missile over the shoulder at the chaser" },
         new() { Name = "Winchester-retreat", AceSpeed = 230f, BanditOffset = new Vector3(0f, 0f, -2500f), BanditYaw = 0f, BanditSpeed = 250f, Seconds = 15f, EmptyWeapons = true,
                 Expect = "winchester call and a run for the edge" },
+        // Staged for film: a Revoker closing on the ace's tail low over the ground; the ace Kulbits as it closes, the
+        // bandit overshoots a dozen metres off, and the ace shoots it as the nose comes round.
+        new() { Name = "Parthian-kulbit-deck", AceSpeed = 150f, BanditOffset = new Vector3(3f, 9f, -300f), BanditYaw = 0f, BanditSpeed = 262f, Seconds = 18f,
+            AltitudeAgl = 820f, ForceKulbitWithin = 190f, Expect = "Kulbit as the bandit closes, an overshoot close by, and a shot at it mid-manoeuvre" },
+        // The wider version: the bandit is still a few hundred metres back when the aces nose comes round, so a missile
+        // can arm and hit while the ace is still in the flip.
+        new() { Name = "Parthian-kulbit-wide", AceSpeed = 112f, BanditOffset = new Vector3(4f, 12f, -1100f), BanditYaw = 0f, BanditSpeed = 250f, Seconds = 16f,
+            AltitudeAgl = 820f, ForceKulbitWithin = 750f, BanditNoFlares = true, Expect = "Kulbit with the bandit 750 m back, and a missile into it as the nose comes round" },
+        new() { Name = "Parthian-bell-deck", AceSpeed = 150f, BanditOffset = new Vector3(3f, 9f, -300f), BanditYaw = 0f, BanditSpeed = 262f, Seconds = 18f,
+            AltitudeAgl = 820f, ForceKulbitWithin = 190f, Staged = Manoeuvre.Bell, Expect = "Bell as the bandit closes, an overshoot close by, and a shot at it as the nose falls" },
         new() { Name = "Tier1-merge", Tier = 1, AceSpeed = 220f, BanditOffset = new Vector3(150f, 0f, 6000f), BanditYaw = 180f, BanditSpeed = 220f, Seconds = 40f,
                 Expect = "a tier 1 ace hunts too, but softer and less accurately" },
     };
@@ -384,6 +398,13 @@ internal static class RecordMode
         }
         Log(outDir, $"{clip}: down test: hit {n} ace(s) for the player");
     }
+    /// <summary>Height of the ground (or sea) under a point, by a ray from high above.</summary>
+    private static float GroundBelow(GlobalPosition at)
+    {
+        var top = new GlobalPosition(at.x, 15000f, at.z).ToLocalPosition();
+        return Physics.Raycast(top, Vector3.down, out var hit, 30000f, ~0, QueryTriggerInteraction.Ignore) ? hit.point.ToGlobalPosition().y : 0f;
+    }
+
     private static AircraftDefinition FindAirframe(string name) =>
         Encyclopedia.i.aircraft.FirstOrDefault(a => a != null && a.unitPrefab != null &&
             (a.unitName ?? "").IndexOf(name, StringComparison.OrdinalIgnoreCase) >= 0);
@@ -407,7 +428,17 @@ internal static class RecordMode
             Formation = "echelonright",
         };
         var anchor = new GlobalPosition(index * 5000f - 12000f, 3000f, index * 3500f - 9000f);
+        if (sc.AltitudeAgl > 0f)
+        {
+            float ground = Mathf.Max(0f, GroundBelow(anchor)); // over the sea the ray finds the seabed
+            anchor = new GlobalPosition(anchor.x, ground + sc.AltitudeAgl, anchor.z);
+            Log(outDir, $"{clip}: ground {ground:0} m, starting {sc.AltitudeAgl:0} m above it");
+        }
+        AceSpawner.TestAltitude = sc.AltitudeAgl > 0f ? anchor.y : null;
+        PostStall.StagingHold = sc.ForceKulbitWithin > 0f;
+        PostStall.StagedSnapSeconds = sc.BanditNoFlares ? 2.2f : 0f;
         var enc = Encounters.LaunchForTest(def, anchor, banditHQ, sc.AceSpeed);
+        AceSpawner.TestAltitude = null;
         if (enc == null || enc.Members.Count == 0)
         {
             Log(outDir, $"{clip}: ace spawn failed");
@@ -454,6 +485,8 @@ internal static class RecordMode
             Encounters.DespawnActiveForTest();
             yield break;
         }
+        if (sc.BanditNoFlares)
+            foreach (var ej in _bandit.GetComponentsInChildren<FlareEjector>(true)) ej.ammo = 0;
         Encounters.TestTarget = _bandit;
         // Both sides know where the other is from the start.
         try
@@ -510,12 +543,44 @@ internal static class RecordMode
                 hooked.Add((p, h));
             }
         clipStart = Time.time;
+        bool forcedKulbit = false, stagedShot = false;
+        float closestPass = float.MaxValue, lowestAlt = float.MaxValue;
         AudioCapture.Begin(Path.Combine(frames, "audio.wav"));
         while (frame < total)
         {
             EnsureCamera();
             if (frame % 60 == 0) HideUi();
             bool aceUp = _ace != null && !_ace.disabled;
+            if (sc.ForceKulbitWithin > 0f && !forcedKulbit && aceUp && _bandit != null && !_bandit.disabled &&
+                Vector3.Distance(_ace.transform.position, _bandit.transform.position) < sc.ForceKulbitWithin)
+            {
+                forcedKulbit = true;
+                PostStall.StagingHold = false;
+                Log(outDir, $"{clip}: staged {sc.Staged} at t={frame / (float)Fps:0.0}s, bandit {Vector3.Distance(_ace.transform.position, _bandit.transform.position):0} m behind, ace {_ace.radarAlt:0} m up: {PostStall.Force(sc.Staged, 700f)}");
+            }
+            if (aceUp && _bandit != null && !_bandit.disabled)
+            {
+                float sep = Vector3.Distance(_ace.transform.position, _bandit.transform.position);
+                if (forcedKulbit && sep < closestPass) closestPass = sep;
+                if (_ace.radarAlt < lowestAlt) lowestAlt = _ace.radarAlt;
+                // Staged shot: as the flipping nose crosses the bandit, an IR missile into it.
+                if (sc.BanditNoFlares && forcedKulbit && !stagedShot && sep > 350f && sep < 1500f &&
+                    Vector3.Angle(_ace.transform.forward, _bandit.transform.position - _ace.transform.position) < 35f && PostStall.Describe(_ace).Contains("Kulbit"))
+                {
+                    var station = _ace.weaponStations.FirstOrDefault(st => st?.WeaponInfo != null && st.Ammo > 0 &&
+                        AceSpawner.IsAirToAirMissile(st.WeaponInfo) && !AceSpawner.IsRadarMissile(st.WeaponInfo));
+                    if (station != null)
+                    {
+                        stagedShot = true;
+                        var wm = _ace.weaponManager;
+                        wm.ClearTargetList();
+                        wm.AddTargetList(_bandit);
+                        wm.SetActiveStation(station.Number);
+                        wm.Fire();
+                        Log(outDir, $"{clip}: staged shot at t={frame / (float)Fps:0.0}s, {station.WeaponInfo.weaponName} at {sep:0} m, still in the {sc.Staged} ({PostStall.Describe(_ace)})");
+                    }
+                }
+            }
             _missile = aceUp
                 ? missiles.Where(m => m != null && !m.disabled)
                           .OrderBy(m => Vector3.Distance(m.transform.position, _ace.transform.position))
@@ -586,6 +651,8 @@ internal static class RecordMode
         if (mw != null) mw.onMissileWarning -= onWarn;
         foreach (var (part, handler) in hooked) if (part != null) part.onApplyDamage -= handler;
 
+        PostStall.StagingHold = false;
+        if (forcedKulbit) Log(outDir, $"{clip}: closest pass after the {sc.Staged} {closestPass:0} m; ace lowest {lowestAlt:0} m above the ground");
         Log(outDir, $"{clip} RESULT: {(lostAt ?? "lead survived")}, aces alive {(enc != null ? enc.AliveCount : _ace != null && !_ace.disabled ? 1 : 0)}/{(enc != null ? enc.Members.Count : 1)}; offensive manoeuvres {PostStall.AttacksFlown - attacksBefore}, " +
                     $"defensive {PostStall.DefencesFlown - defencesBefore}, hunts {PostStall.HuntsFlown - huntsBefore}, ripostes {PostStall.RipostesFired - ripostesBefore}; missiles fired at the ace {missiles.Count}; " +
                     $"ace had the bandit within 30 deg of its nose for {onNose:0.0} s, bandit had the ace for {onTail:0.0} s; " +
@@ -703,8 +770,38 @@ internal static class RecordMode
 
         public override void FixedUpdateState(CameraStateManager cam) { }
 
+        /// <summary>-noahCam two (default) | ace (chase behind the ace's flight path) | victim (behind the bandit, on the ace).</summary>
+        internal static readonly string Mode = Arg("-noahCam", "two").ToLowerInvariant();
+        private Vector3 _vel = Vector3.forward;
+        private Vector3 _lookSm = Vector3.forward;
+
+        private void Chase(CameraStateManager cam, Unit subject, Unit target, float back, float up)
+        {
+            Vector3 p = subject.transform.position;
+            float size = Mathf.Max(subject.definition.length, subject.definition.width, 10f);
+            Vector3 v = subject.rb != null && subject.rb.velocity.sqrMagnitude > 25f ? subject.rb.velocity.normalized : subject.transform.forward;
+            float k = _primed ? 1f - Mathf.Exp(-Time.deltaTime * 3f) : 1f;
+            _vel = Vector3.Slerp(_vel, v, k).normalized; // along the flight path, smoothed: the jet can flip in front of us
+            Vector3 camPos = p - _vel * size * back + Vector3.up * size * up;
+            Vector3 want = (p + _vel * size * 6f) - camPos;
+            if (target != null)
+            {
+                Vector3 toT = target.transform.position - camPos;
+                if (Vector3.Dot(toT.normalized, _vel) > 0.2f && toT.magnitude < 3000f) want = Vector3.Lerp(want.normalized, toT.normalized, 0.45f);
+            }
+            _lookSm = _primed ? Vector3.Slerp(_lookSm, want.normalized, k).normalized : want.normalized;
+            _primed = true;
+            cam.cameraPivot.localPosition = camPos.ToGlobalPosition().AsVector3();
+            cam.transform.localPosition = Vector3.zero;
+            cam.transform.rotation = Quaternion.LookRotation(_lookSm, Vector3.up);
+            cam.mainCamera.fieldOfView = 62f;
+            cam.cameraVelocity = Vector3.zero;
+        }
+
         public override void UpdateState(CameraStateManager cam)
         {
+            if (Mode == "ace" && _ace != null && !_ace.disabled) { Chase(cam, _ace, null, 3.4f, 0.75f); return; }
+            if (Mode == "victim" && _bandit != null) { Chase(cam, _bandit, _ace, 2.6f, 0.55f); return; }
             var a = _ace;
             if (a == null || a.disabled) return;
             Vector3 p = a.transform.position;

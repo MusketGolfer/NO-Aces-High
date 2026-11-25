@@ -276,6 +276,7 @@ internal static class PostStall
         if (!Encounters.TryGetAce(a, out tier, out _)) return false;
         if (Encounters.InFormationSlot(a) || Encounters.IsFormationLead(a)) return false;
         if (IntroDirector.Playing && IntroDirector.CameraCut) return false;
+        if (StagingHold) return false; // record mode: a staged manoeuvre is coming, fly straight until it is forced
         capable = AirframeChecklist.IsPostStallCapable(a.definition);
         postStall = tier >= Plugin.PostStallTier.Value || AirframeChecklist.IsPostStallFlagged(a.definition);
         return a.rb != null;
@@ -752,11 +753,16 @@ internal static class PostStall
     }
 
     /// <summary>Debug: make the active squadron's lead fly a manoeuvre now (still refuses below 1,000 m).</summary>
-    internal static string Force(Manoeuvre m)
+    /// <summary>Record mode: no manoeuvres of the aces' own choosing while a staged one is set up.</summary>
+    internal static bool StagingHold;
+    /// <summary>Record mode: a staged Kulbit may take this long to bring the nose round (0 = the usual 1.4 s).</summary>
+    internal static float StagedSnapSeconds;
+
+    internal static string Force(Manoeuvre m, float minAltitude = 1000f)
     {
         var lead = Encounters.ActiveLead;
         if (lead == null) return "No active ace to fly it.";
-        if (lead.radarAlt < 1000f) return $"{Callsign(lead)} is too low ({lead.radarAlt:0} m) for a {m}.";
+        if (lead.radarAlt < minAltitude) return $"{Callsign(lead)} is too low ({lead.radarAlt:0} m) for a {m}.";
         if (Active.ContainsKey(lead)) return $"{Callsign(lead)} is already flying a {Active[lead].Kind}.";
         Begin(lead, m, Encounters.ActiveTarget, AirframeChecklist.IsPostStallCapable(lead.definition), true);
         return $"{Callsign(lead)}: {m}.";
@@ -868,7 +874,7 @@ internal static class PostStall
             // Kulbit nose snap --------------------------------------------------------------------------
             case (Manoeuvre.Kulbit, 0): // snap onto the target
                 omega = Turn(fwd, lookDir, 4f, 3f) + KeepUp(fwd, up, 0.8f);
-                if (Vector3.Angle(fwd, lookDir) < 6f || t > 1.4f) NextPhase(run, 1);
+                if (Vector3.Angle(fwd, lookDir) < 6f || t > (StagedSnapSeconds > 0f ? StagedSnapSeconds : 1.4f)) NextPhase(run, 1);
                 break;
             case (Manoeuvre.Kulbit, 1): // hold it there for the shot
                 omega = Turn(fwd, lookDir, 3f, 2f) + KeepUp(fwd, up, 0.8f);
