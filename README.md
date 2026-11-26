@@ -21,7 +21,8 @@ its own music, and pilots who fly like they mean it.
 - **Health bars.** A bar per ace along the bottom of the screen, in your HUD's danger colour.
 - **Your own squadrons.** A folder, a `squadron.json` and optionally an emblem, music and recorded voice lines.
   Up to 16 pilots, mixed aircraft with backups, loadouts built station by station, `random` styles. See the
-  [squadron guide](Squadrons/README.md).
+  [squadron guide](Squadrons/README.md). Squadrons other players have made, and how to share yours, are in
+  [Community-Squadrons](Community-Squadrons/README.md).
 - **Loadouts.** A loadout editor in the settings: view every jet's loadouts, build your own presets, and choose what
   random aces carry.
 - **A record.** The settings page keeps your score: squadrons faced and beaten, aces you shot down, your fastest win,
