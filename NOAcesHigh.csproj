@@ -4,7 +4,7 @@
     <TargetFramework>netstandard2.1</TargetFramework>
     <AssemblyName>NOAcesHigh</AssemblyName>
     <RootNamespace>NOAcesHigh</RootNamespace>
-    <Version>1.2.1</Version> <!-- keep in step with Plugin.Version; tools/make-release.ps1 checks -->
+    <Version>1.3.0</Version> <!-- keep in step with Plugin.Version; tools/make-release.ps1 checks -->
     <LangVersion>latest</LangVersion>
     <Nullable>disable</Nullable>
     <DebugType>none</DebugType>

@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.3.0
 
 - **Aces keep their wings.** Aces no longer tear their own wings off in fast, hard pulls; the Compass was the worst
   offender. The g an ace may pull now falls with speed, since the same g that is safe at 800 km/h snaps a wing at
