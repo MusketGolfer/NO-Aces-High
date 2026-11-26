@@ -49,7 +49,7 @@ internal static class SquadronCheck
 
         if (!string.IsNullOrWhiteSpace(def.Faction) && Factions.Parse(def.Faction) == Side.Unknown)
             p.Add($"\"faction\": \"{def.Faction}\" is not a side; use \"BDF\" or \"PALA\" (or leave it out for either side).");
-        if (def.Tier is < 1 or > 3)
+        if (def.Tier is < 1 or > 4)
             p.Add($"\"tier\": {def.Tier} is out of range; use 1, 2 or 3 (it is clamped).");
         foreach (var entry in Variants.Entries(def.Color))
             if (!Variants.IsRandom(entry) && !ColorUtility.TryParseHtmlString(entry, out _))
