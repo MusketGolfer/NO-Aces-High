@@ -410,7 +410,9 @@ internal static class PostStall
         // speed, and we come back down on them), a diving extension if they beat us at turning and climbing, else
         // a break and jinks.
         var pic = EnergyFight.Compare(a, attacker);
-        if (tier >= 3 && pic.OutClimbs && a.speed > 550f / 3.6f && a.radarAlt > 1000f && Ready(a, Manoeuvre.Zoom))
+        // Entry speed: a jet with thrust to spare (T/W 1.2 and up) can climb steeply from 400 km/h; others need 550.
+        float zoomEntry = (pic.OurTW >= 1.2f ? 400f : 550f) / 3.6f;
+        if (tier >= 3 && pic.OutClimbs && a.speed > zoomEntry && a.radarAlt > 1000f && Ready(a, Manoeuvre.Zoom))
         {
             Begin(a, Manoeuvre.Zoom, attacker, capable, false, attacker, $"{attacker.unitName} {dist:0} m behind; {pic}: taking it vertical");
             if (Active.TryGetValue(a, out var zoom)) { zoom.FlaresLeft = 0; zoom.TierScale = TierScale(tier); }
@@ -1148,7 +1150,14 @@ internal static class PostStall
                     omega = Turn(fwd, climb, 2.5f, 2f) + KeepUp(fwd, up, 1f);
                     throttle = 1f;
                     float chaserSpeed = chaser.speed;
-                    if (chaserSpeed < 320f / 3.6f || speed < Mathf.Max(330f / 3.6f, cornerZ * 0.75f) || t > 8f)
+                    // Climb at least 1.5 s; jets with thrust to spare (T/W 1.2 and up) go down to 300 km/h, others to 75%
+                    // of corner speed. A chaser that does not follow (not climbing after us, falling over 2.5 km behind)
+                    // is not being trapped: come back down early, before getting slow.
+                    float tw = AirframeProfiles.For(a)?.ThrustToWeight ?? 0.8f;
+                    float exitSpeed = tw >= 1.2f ? 300f / 3.6f : Mathf.Max(330f / 3.6f, cornerZ * 0.75f);
+                    float chaserClimb = chaser.rb != null ? Mathf.Asin(Mathf.Clamp(chaser.rb.velocity.y / Mathf.Max(chaser.speed, 1f), -1f, 1f)) * Mathf.Rad2Deg : 0f;
+                    bool notFollowing = t > 3f && chaserClimb < 15f && Vector3.Distance(chaser.transform.position, a.transform.position) > 2500f;
+                    if (t > 1.5f && (chaserSpeed < 320f / 3.6f || speed < exitSpeed || notFollowing) || t > 8f)
                     {
                         Plugin.Log.LogInfo($"{Callsign(a)}: zoom topped out at {speed * 3.6f:0} km/h after {t:0.0} s; {chaser.unitName} at {chaserSpeed * 3.6f:0} km/h, " +
                                            $"{chaser.GlobalPosition().y - a.GlobalPosition().y:0} m relative height. Coming back down on it.");
