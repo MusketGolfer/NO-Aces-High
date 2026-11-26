@@ -299,9 +299,6 @@ also ship squadrons: any folder called `AceSquadrons` inside `BepInEx\plugins` i
 In multiplayer the host's squadrons are the ones that fly, and everyone should have the same squadron folders so the
 emblems and music match.
 
-To share one with everyone, or to find squadrons other players have made, see the community squadrons on GitHub:
-https://github.com/MusketGolfer/NO-Aces-High/tree/main/Community-Squadrons
-
 ## Checklist when something does not show up
 
 - **Not in the list at all.** The folder must contain a file named exactly `squadron.json`, and the folder name must not
