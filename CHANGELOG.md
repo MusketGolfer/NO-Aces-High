@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.3.1
 
 - **Music: cutscene follows the intro straight on.** When a squadron's intro music ends a moment before its
   cutscene starts, the `cutscene` section now carries on at once instead of jumping to the loop and back.
