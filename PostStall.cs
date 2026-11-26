@@ -16,6 +16,9 @@ internal enum Manoeuvre
     Hunt,
     Notch,
     Crank,
+    Jink,
+    Bait,
+    Zoom,
 }
 
 /// <summary>
@@ -79,6 +82,15 @@ internal static class PostStall
         public bool Cover;             // hunt: going after a hostile on a squadmate's tail
         public Aircraft Protecting;
         public bool PincerCalled;
+        public float NextJink;         // jink: time of the next reversal
+        public Vector3 JinkUp;         // jink: the lift direction being pulled toward now
+        public Vector3 RidgeFace;      // bait: where the rising ground reaches the ace's height (local)
+        public float RidgeCrest;       // bait: the ridge top (local y)
+        public float BaitMargin;       // bait: safety factor on the pull-up distance
+        public bool Extend;            // jink: dive away and accelerate instead of turning (outmatched)
+        public string YoyoLogged;      // hunt: the last yo-yo logged
+        public bool MergeChosen;       // hunt: the circle for this merge has been picked
+        public float OneCircleUntil;   // hunt: turning away into a one-circle fight until then
     }
 
     private const int Recover = 100;
@@ -181,7 +193,7 @@ internal static class PostStall
             if ((!running || !run.Defensive || run.Phase >= Recover) && (!NextCheck.TryGetValue(a, out var next) || now >= next))
             {
                 NextCheck[a] = now + CheckInterval;
-                if (TryDefend(a) || !running && TryTrigger(a))
+                if (TryDefend(a) || TryGunsDefence(a) || !running && TryTrigger(a))
                     running = Active.TryGetValue(a, out run);
             }
             if (running) Drive(a, run);
@@ -357,14 +369,110 @@ internal static class PostStall
         Manoeuvre m = aspect > 110f && postStall && (profile?.PostStallSuits ?? true) && a.radarAlt > 1200f ? Manoeuvre.Cobra : Manoeuvre.Break;
         // A plain airframe that rolls too slowly to make a break work leaves it to the stock evasion.
         if (m == Manoeuvre.Break && !capable && (profile == null || profile.RollRate < 90f)) return false;
-        if (Active.TryGetValue(a, out var current) && current.Defensive && current.Phase < Recover && current.Kind != Manoeuvre.Notch) return false;
-        if (current != null && (!current.Defensive || current.Kind == Manoeuvre.Notch) && current.Phase < Recover)
+        if (Active.TryGetValue(a, out var current) && current.Defensive && current.Phase < Recover && current.Kind is not (Manoeuvre.Notch or Manoeuvre.Jink)) return false;
+        if (current != null && (!current.Defensive || current.Kind is Manoeuvre.Notch or Manoeuvre.Jink) && current.Phase < Recover)
             Plugin.Log.LogInfo($"{Callsign(a)}: {current.Kind} broken off for a missile.");
         LastDefence[a] = Time.time;
         LastDefended[a] = missile;
         Begin(a, m, null, capable, false, missile, $"missile {dist:0} m out, {impact:0.0} s, {aspect:0} deg off the nose");
         if (Active.TryGetValue(a, out var started)) started.TierScale = TierScale(tier);
         return true;
+    }
+
+    // ---- guns defence ---------------------------------------------------------------------------------
+
+    private static readonly Dictionary<Aircraft, float> GunThreatSince = new();
+
+    /// <summary>
+    /// Someone behind and aiming: a hostile more than 100 deg off the ace's nose, inside 2.5 km, with the ace within
+    /// 15 deg of its own nose. Left alone, the stock AI flies on while they settle into a gun solution (tested: a
+    /// guns-only Revoker held one for up to 23 s of 40 at 1.5 km), so every tier answers, after a reaction time
+    /// (tier 1: 1 s, 2: 0.6 s, 3: 0.3 s): a hard break across their line of fire; from tier 2, jinking reversals while
+    /// they stay on; and when they overshoot, the normal hunt and post-stall reversals take over. A missile cuts in.
+    /// </summary>
+    private static bool TryGunsDefence(Aircraft a)
+    {
+        if (!EligibleBase(a, out bool capable, out _, out int tier) || a.radarAlt < 300f) return false;
+        if (Active.TryGetValue(a, out var current) && current.Phase < Recover && (current.Defensive || current.Kind == Manoeuvre.Hunt && current.Phase > 0))
+            return false;
+        Aircraft attacker = AimingAtUs(a, 2500f, 15f);
+        float now = Time.time;
+        if (attacker == null) { GunThreatSince.Remove(a); return false; }
+        if (!GunThreatSince.TryGetValue(a, out float since)) { GunThreatSince[a] = now; return false; }
+        float react = tier <= 1 ? 1f : tier == 2 ? 0.6f : tier == 3 ? 0.3f : 0.2f;
+        if (now - since < react) return false;
+        if (current != null && current.Phase < Recover)
+            Plugin.Log.LogInfo($"{Callsign(a)}: {current.Kind} broken off: {attacker.unitName} on the tail.");
+        float dist = Vector3.Distance(attacker.transform.position, a.transform.position);
+        // Tier 3 and up, low with them close behind and a ridge ahead: lead them at it instead (see Bait in Drive).
+        if (TryBait(a, attacker, tier, dist)) { GunThreatSince.Remove(a); return true; }
+        // The escape that suits the two jets: the vertical if we out-climb them (tier 3 up; they follow, run out of
+        // speed, and we come back down on them), a diving extension if they beat us at turning and climbing, else
+        // a break and jinks.
+        var pic = EnergyFight.Compare(a, attacker);
+        if (tier >= 3 && pic.OutClimbs && a.speed > 550f / 3.6f && a.radarAlt > 1000f && Ready(a, Manoeuvre.Zoom))
+        {
+            Begin(a, Manoeuvre.Zoom, attacker, capable, false, attacker, $"{attacker.unitName} {dist:0} m behind; {pic}: taking it vertical");
+            if (Active.TryGetValue(a, out var zoom)) { zoom.FlaresLeft = 0; zoom.TierScale = TierScale(tier); }
+            Cooldown[(a, Manoeuvre.Zoom)] = Time.time + 20f;
+            GunThreatSince.Remove(a);
+            return true;
+        }
+        bool extend = pic.Outmatched && a.radarAlt > 1500f && a.speed > 400f / 3.6f;
+        Begin(a, Manoeuvre.Jink, attacker, capable, false, attacker,
+              $"{attacker.unitName} {dist:0} m behind with a gun solution; {pic}{(extend ? ": extending away" : "")}");
+        if (Active.TryGetValue(a, out var run)) { run.FlaresLeft = 0; run.TierScale = TierScale(tier); run.Extend = extend; }
+        GunThreatSince.Remove(a);
+        return true;
+    }
+
+    /// <summary>Testing counters: ridge baits flown, and pursuers lost to the ground during one.</summary>
+    internal static int BaitsFlown, BaitKills;
+
+    /// <summary>
+    /// The ridge bait: tier 3 and up, under 450 m above the ground, a pursuer inside 1.5 km behind and pointing, a jet
+    /// that turns well (a turn fighter, or 8 g and more), and rising ground 1.2-4 km dead ahead that tops out 60-600 m
+    /// above it. Fly at the ridge level and pull up as late as the ace's own speed and g allow, with a margin (tier 3:
+    /// 25%, tier 4: 12%); a pursuer close behind and fixed on the shot has less room than that.
+    /// </summary>
+    private static bool TryBait(Aircraft a, Aircraft attacker, int tier, float dist)
+    {
+        if (!Plugin.TerrainTactics.Value || tier < 3 || a.radarAlt > 450f || dist > 1500f || !Ready(a, Manoeuvre.Bait)) return false;
+        var profile = AirframeProfiles.For(a);
+        if (profile != null && profile.Style != "turn" && profile.PeakG < 8f) return false;
+        if (!TerrainTactics.TryFindRidge(a, out float face, out float crest)) return false;
+        Vector3 dir = a.rb.velocity;
+        dir.y = 0f;
+        dir.Normalize();
+        Begin(a, Manoeuvre.Bait, attacker, AirframeChecklist.IsPostStallCapable(a.definition), false, attacker,
+              $"{attacker.unitName} {dist:0} m behind, ridge {face:0} m ahead, {crest - a.transform.position.y:0} m above us");
+        if (!Active.TryGetValue(a, out var run)) return false;
+        run.FlaresLeft = 0;
+        run.RidgeFace = a.transform.position + dir * face;
+        run.RidgeCrest = crest;
+        run.BaitMargin = tier >= 4 ? 1.12f : 1.25f;
+        Cooldown[(a, Manoeuvre.Bait)] = Time.time + 30f;
+        BaitsFlown++;
+        return true;
+    }
+
+    /// <summary>The nearest hostile behind the ace (more than 100 deg off its nose) within range, pointing at it.</summary>
+    private static Aircraft AimingAtUs(Aircraft a, float range, float cone)
+    {
+        Aircraft best = null;
+        float bestDist = range;
+        Vector3 pos = a.transform.position, fwd = a.transform.forward;
+        foreach (var h in System.Linq.Enumerable.Concat(Encounters.HuntedAircraft(), Encounters.PursuerCandidates()))
+        {
+            if (h == null || h.disabled || h == a) continue;
+            Vector3 rel = h.transform.position - pos;
+            float d = rel.magnitude;
+            if (d >= bestDist || Vector3.Angle(fwd, rel) < 100f) continue;
+            if (Vector3.Angle(h.transform.forward, -rel) > cone) continue;
+            best = h;
+            bestDist = d;
+        }
+        return best;
     }
 
     private static bool TryTrigger(Aircraft a)
@@ -425,7 +533,9 @@ internal static class PostStall
         // Target behind and not close enough for a Cobra: reverse rather than fly a long turn.
         // Fast (over 600 km/h): Kvochur's Bell, zooming above the chaser and falling onto it. Slow: Herbst.
         // In between, either.
-        bool behind = offNose > 110f && dist > 1500f && dist < 8000f;
+        // Tier 3 and up reverse from 1 km out: between 1 and 1.5 km a fast ace had nothing that fit (the Cobra and the
+        // yaw-roll bell want it slower), and simply flew on.
+        bool behind = offNose > 110f && dist > (tier >= 3 ? 1000f : 1500f) && dist < 8000f;
         // The Bell hangs nearly still for a few seconds, so only against a chaser too close to set up a shot on it.
         bool bellFits = capable && suits && Ready(a, Manoeuvre.Bell) && alt > 2500f && speed > 450f / 3.6f && behind && dist < 4500f;
         bool herbstFits = capable && suits && Ready(a, Manoeuvre.Herbst) && alt > 2000f && speed < 600f / 3.6f && speed > 200f / 3.6f && behind && offNose > 120f;
@@ -790,10 +900,12 @@ internal static class PostStall
 
         // Anything dangerous: straight to the recovery.
         // Breaks and notches are level-flight defences and may be flown low; everything else aborts below the floor.
-        bool lowOk = run.Kind is Manoeuvre.Break or Manoeuvre.Notch;
-        if (run.Phase < Recover && a.radarAlt < (lowOk ? 150f : AbortAltitude))
+        bool lowOk = run.Kind is Manoeuvre.Break or Manoeuvre.Notch or Manoeuvre.Jink or Manoeuvre.Bait;
+        // The bait runs at a ridge on purpose; once it is pulling up it finishes the pull (the recovery climbs too gently).
+        float abortFloor = run.Kind == Manoeuvre.Bait ? (run.Phase == 1 ? 0f : 40f) : lowOk ? 150f : AbortAltitude;
+        if (run.Phase < Recover && a.radarAlt < abortFloor)
         {
-            Plugin.Log.LogInfo($"{Callsign(a)}: {run.Kind} aborted below {(lowOk ? 150f : AbortAltitude):0} m.");
+            Plugin.Log.LogInfo($"{Callsign(a)}: {run.Kind} aborted below {abortFloor:0} m.");
             NextPhase(run, Recover);
         }
 
@@ -966,6 +1078,171 @@ internal static class PostStall
                 // Against a radar missile the break turns any jamming pod on it (flares do nothing to it).
                 if (run.Threat is Missile bm && !bm.disabled && IsRadarGuided(bm)) AceTactics.JamMissile(a, bm);
                 if (t > 2.2f || aligned && Vector3.Angle(fwd, beam) < 15f && t > 0.8f) NextPhase(run, Recover);
+                break;
+            }
+
+            // Bait: lead a pursuer at a ridge -----------------------------------------------------------------
+            // Phase 0: wings level, straight at the ridge, holding height. Phase 1 starts when the ridge face is as
+            // close as a pull at the available g needs to clear the crest by 60 m (times the margin, plus 0.3 s):
+            // a full pull, wings level, until the flight path clears the top. Gives up (to the recovery) if the
+            // pursuer stops chasing before the pull.
+            case (Manoeuvre.Bait, 0):
+            case (Manoeuvre.Bait, 1):
+            {
+                var chaser = run.Threat as Aircraft;
+                Vector3 toFace = run.RidgeFace - a.transform.position;
+                toFace.y = 0f;
+                float faceDist = toFace.magnitude;
+                float h = run.RidgeCrest + 60f - a.transform.position.y;
+                float n = Mathf.Min(AceFlight.SafeG(a), 9f) * 0.85f;
+                float r = speed * speed / (Mathf.Max(n, 2f) * 9.81f);
+                float need = h <= 0f ? 0f : h < r ? Mathf.Sqrt(r * r - (r - h) * (r - h)) : r;
+                if (chaser != null && chaser.disabled && run.Phase <= 1)
+                {
+                    BaitKills++;
+                    Plugin.Log.LogInfo($"{Callsign(a)}: bait: {chaser.unitName} went down at {Time.time - run.Start:0.0} s.");
+                    run.Threat = null;
+                }
+                if (run.Phase == 0)
+                {
+                    bool chasing = chaser != null && !chaser.disabled &&
+                                   Vector3.Distance(chaser.transform.position, a.transform.position) < 2500f &&
+                                   Vector3.Angle(chaser.transform.forward, a.transform.position - chaser.transform.position) < 35f;
+                    if (!chasing && t > 1f) { NextPhase(run, Recover); omega = Vector3.zero; break; }
+                    Vector3 level = toFace.sqrMagnitude > 1f ? toFace.normalized : FlatOf(fwd, fwd);
+                    omega = KeepUp(fwd, up, 3f) + Turn(fwd, level, 1.2f);
+                    throttle = 1f;
+                    if (faceDist <= need * run.BaitMargin + speed * 0.3f || faceDist < 300f)
+                    {
+                        Plugin.Log.LogInfo($"{Callsign(a)}: bait: pulling up {faceDist:0} m from the ridge (needs {need:0} m at {n:0.0} g, {speed * 3.6f:0} km/h).");
+                        NextPhase(run, 1);
+                    }
+                    break;
+                }
+                // Pull: wings level, full nose-up; done when the climb clears the crest or we are above it and climbing.
+                omega = KeepUp(fwd, up, 3f) + tr.right * (-2.6f * pullLimit);
+                throttle = 1f;
+                float gamma = Mathf.Asin(Mathf.Clamp(vel.y / Mathf.Max(speed, 1f), -1f, 1f));
+                float pathAtFace = a.transform.position.y + Mathf.Tan(gamma) * Mathf.Max(faceDist, 0f);
+                if (a.transform.position.y > run.RidgeCrest + 40f && vel.y > 0f || pathAtFace > run.RidgeCrest + 80f && gamma > 0.2f || t > 6f)
+                    NextPhase(run, Recover);
+                break;
+            }
+
+            // Zoom: the energy trap ------------------------------------------------------------------------
+            // Phase 0: wings level, nose 70 deg up, full power, away from a chaser that climbs worse. When the chaser
+            // runs out of speed (under 320 km/h) or we near ours (75% of corner speed, at least 330 km/h), phase 1:
+            // roll the lift onto them and pull down onto them; once they are within 30 deg of the nose the hunt (or
+            // the recovery) takes over.
+            case (Manoeuvre.Zoom, 0):
+            case (Manoeuvre.Zoom, 1):
+            {
+                var chaser = run.Threat as Aircraft;
+                bool live = chaser != null && !chaser.disabled;
+                if (!live) { NextPhase(run, Recover); omega = Vector3.zero; break; }
+                float cornerZ = a.GetAircraftParameters()?.cornerSpeed ?? 150f;
+                if (run.Phase == 0)
+                {
+                    Vector3 flatZ = FlatOf(vel.sqrMagnitude > 2500f ? vel : fwd, fwd);
+                    Vector3 climb = Quaternion.AngleAxis(-70f, Vector3.Cross(Vector3.up, flatZ).normalized) * flatZ;
+                    omega = Turn(fwd, climb, 2.5f, 2f) + KeepUp(fwd, up, 1f);
+                    throttle = 1f;
+                    float chaserSpeed = chaser.speed;
+                    if (chaserSpeed < 320f / 3.6f || speed < Mathf.Max(330f / 3.6f, cornerZ * 0.75f) || t > 8f)
+                    {
+                        Plugin.Log.LogInfo($"{Callsign(a)}: zoom topped out at {speed * 3.6f:0} km/h after {t:0.0} s; {chaser.unitName} at {chaserSpeed * 3.6f:0} km/h, " +
+                                           $"{chaser.GlobalPosition().y - a.GlobalPosition().y:0} m relative height. Coming back down on it.");
+                        NextPhase(run, 1);
+                    }
+                    break;
+                }
+                Vector3 toChaser = (chaser.transform.position - a.transform.position).normalized;
+                Vector3 liftTo = toChaser - fwd * Vector3.Dot(toChaser, fwd);
+                Vector3 rollZ = liftTo.sqrMagnitude > 1e-4f ? Turn(up, liftTo.normalized, 5f, 4f) : Vector3.zero;
+                rollZ = fwd * Vector3.Dot(rollZ, fwd);
+                float liftOffZ = liftTo.sqrMagnitude > 1e-4f ? Vector3.Angle(up, liftTo) : 0f;
+                omega = rollZ + tr.right * (-2.2f * pullLimit * (liftOffZ > 70f ? 0.3f : 1f));
+                throttle = 1f;
+                if (Vector3.Angle(fwd, toChaser) < 30f || t > 6f) NextPhase(run, Recover);
+                break;
+            }
+
+            // Jink: spoil a gun solution from behind ------------------------------------------------------
+            // Phase 0, the break: roll the lift toward the side the attacker sits on (straight behind: either side)
+            // and pull hard across their line of fire. Phase 1 (tier 2 and up), the jink: while they stay behind and
+            // pointing, a new lift direction every 0.8-1.5 s, a quarter to a half turn away, pulled hard, so the
+            // aim never settles. Both end when the attacker loses the solution, overshoots or falls back.
+            case (Manoeuvre.Jink, 0):
+            case (Manoeuvre.Jink, 1):
+            {
+                var attacker = run.Threat as Aircraft;
+                bool live = attacker != null && !attacker.disabled;
+                Vector3 rel = live ? attacker.transform.position - a.transform.position : -fwd * 1000f;
+                float dist = rel.magnitude;
+                Vector3 dir = rel / Mathf.Max(dist, 1f);
+                bool behind = Vector3.Angle(fwd, dir) > 90f;
+                bool aiming = live && Vector3.Angle(attacker.transform.forward, -dir) < 25f;
+                if (!live || !behind || dist > 3000f || !aiming && t > 1f) { NextPhase(run, Recover); omega = Vector3.zero; break; }
+
+                // Outmatched: dive away from them and accelerate, swerving a little either way every 1.5 s.
+                if (run.Extend)
+                {
+                    Vector3 away = -dir;
+                    away.y = 0f;
+                    if (away.sqrMagnitude < 0.01f) away = FlatOf(fwd, fwd);
+                    away.Normalize();
+                    if (now >= run.NextJink)
+                    {
+                        run.JinkUp = Quaternion.AngleAxis(UnityEngine.Random.Range(-25f, 25f), Vector3.up) * away;
+                        run.NextJink = now + 1.5f;
+                    }
+                    Vector3 course = run.JinkUp == Vector3.zero ? away : run.JinkUp;
+                    float diveDeg = a.radarAlt > 2500f ? 25f : a.radarAlt > 1200f ? 10f : 0f;
+                    Vector3 wantedE = Quaternion.AngleAxis(diveDeg, Vector3.Cross(Vector3.up, course).normalized) * course; // + = nose down, as in the recovery
+                    omega = Turn(fwd, wantedE, 2.5f, 2f) + KeepUp(fwd, up, 2f);
+                    throttle = 1f;
+                    if (t > 10f) NextPhase(run, Recover);
+                    break;
+                }
+
+                if (run.Phase == 0 && run.JinkUp == Vector3.zero)
+                {
+                    Vector3 side = dir - fwd * Vector3.Dot(dir, fwd);
+                    if (side.sqrMagnitude < 0.01f) side = tr.right * (UnityEngine.Random.value < 0.5f ? 1f : -1f);
+                    run.JinkUp = side.normalized;
+                }
+                if (run.Phase == 1 && now >= run.NextJink)
+                {
+                    float turn = UnityEngine.Random.Range(90f, 150f) * (UnityEngine.Random.value < 0.5f ? 1f : -1f);
+                    run.JinkUp = Quaternion.AngleAxis(turn, fwd) * (run.JinkUp == Vector3.zero ? up : run.JinkUp);
+                    run.NextJink = now + UnityEngine.Random.Range(1.2f, 2.0f);
+                }
+                // Low down, never pull toward the ground.
+                Vector3 wantUp = run.JinkUp - fwd * Vector3.Dot(run.JinkUp, fwd);
+                if (a.radarAlt < 1000f && wantUp.y < 0.2f) wantUp.y = 0.2f;
+                if (wantUp.sqrMagnitude < 1e-3f) wantUp = up;
+                wantUp.Normalize();
+                Vector3 rollPart = Turn(up, wantUp, 4f, 4f);
+                rollPart = fwd * Vector3.Dot(rollPart, fwd);
+                // Roll and pull at once, the pull growing as the lift comes round (a held pull with no roll is what the
+                // stock AI does, and an attacker tracks that easily).
+                float misalign = Vector3.Angle(up, wantUp);
+                bool aligned = misalign < 40f;
+                float pullShare = Mathf.Clamp01(Mathf.Cos(misalign * Mathf.Deg2Rad) * 0.7f + 0.3f);
+                float pull = run.TierScale >= 1f ? 1f : run.TierScale; // tier 1: 0.6, tier 2: 0.8 of the hard pull
+                // Energy: ease the jinks as the speed falls toward 85% of corner speed (a slow jet is an easy kill).
+                float cornerJ = a.GetAircraftParameters()?.cornerSpeed ?? 150f;
+                pull *= Mathf.Lerp(0.3f, 1f, Mathf.Clamp01((speed - cornerJ * 0.85f) / (cornerJ * 0.3f)));
+                omega = rollPart + tr.right * (-2.6f * pullLimit * pull * pullShare);
+                // Closing fast inside 900 m: chop the power so they overshoot.
+                float closingJ = live && attacker.rb != null ? -Vector3.Dot(attacker.rb.velocity - vel, dir) : 0f;
+                throttle = dist < 900f && closingJ > 30f && speed > 650f / 3.6f ? 0.2f : 1f;
+                if (run.Phase == 0 && (t > 2.2f || aligned && t > 1.2f))
+                {
+                    if (run.TierScale < 0.7f) NextPhase(run, Recover); // tier 1: the break only
+                    else { NextPhase(run, 1); run.NextJink = now; }
+                }
+                else if (run.Phase == 1 && t > 8f) NextPhase(run, Recover);
                 break;
             }
 
@@ -1152,6 +1429,21 @@ internal static class PostStall
                     // Too close and closing fast: lag pursuit, aim behind them so as not to fly past into their sights.
                     if (targetDist < 400f && closingT > 60f)
                         aim = (run.Target.transform.position - tv * 0.6f - a.transform.position).normalized;
+                    // Yo-yos (tier 2 up): closing too fast with them well off the nose, take the pull out of the
+                    // horizontal (high yo-yo) to bleed closure and avoid the overshoot; falling behind with them off the
+                    // nose, cut inside below (low yo-yo) to trade height for the speed and angle to catch up.
+                    else if (run.TierScale >= 0.8f && targetDist < 2000f && a.radarAlt > 1200f)
+                    {
+                        float offT = Vector3.Angle(fwd, aim);
+                        string yoyo = null;
+                        if (closingT > 40f && offT > 25f && offT < 100f) { aim = (aim + Vector3.up * 0.35f).normalized; yoyo = "high"; }
+                        else if (closingT < -15f && offT > 20f && offT < 80f) { aim = (aim - Vector3.up * 0.3f).normalized; yoyo = "low"; }
+                        if (yoyo != null && run.YoyoLogged != yoyo)
+                        {
+                            run.YoyoLogged = yoyo;
+                            Plugin.Log.LogInfo($"{Callsign(a)}: {yoyo} yo-yo on {run.Target.unitName}, {targetDist:0} m, closing {closingT:0} m/s, {offT:0} deg off.");
+                        }
+                    }
 
                     // Pincer: a squadmate nearer the same target takes it head on; this one swings out to the far
                     // flank until 1.5 km out, so the target cannot turn into both.
@@ -1172,6 +1464,24 @@ internal static class PostStall
                             Encounters.Taunt(a, "pincer");
                         }
                     }
+                }
+                // The merge (tier 2 up): passing close and fast, pick the circle. Turning toward their tail (two-circle,
+                // what the hunt does anyway) suits a jet that turns faster; turning away first (one-circle, the two
+                // jets nose to nose on the same circle) suits one with the tighter radius but no rate advantage.
+                if (haveTarget && run.TierScale >= 0.8f && !run.MergeChosen && targetDist < 1500f && offNose > 70f && closingT > 100f)
+                {
+                    run.MergeChosen = true;
+                    var mp = EnergyFight.Compare(a, run.Target);
+                    float rOurs = TurnRadius(a), rTheirs = TurnRadius(run.Target);
+                    bool oneCircle = !mp.OutTurns && rOurs < rTheirs * 0.9f;
+                    if (oneCircle) run.OneCircleUntil = now + 3.5f;
+                    Plugin.Log.LogInfo($"{Callsign(a)}: merge with {run.Target.unitName}: {(oneCircle ? "one-circle" : "two-circle")} " +
+                                       $"(radius {rOurs:0} m against {rTheirs:0} m; {mp}).");
+                }
+                if (haveTarget && now < run.OneCircleUntil)
+                {
+                    Vector3 right = tr.right;
+                    aim = (aim - 2f * right * Vector3.Dot(aim, right)).normalized; // the mirror turn: away from them
                 }
                 // Lower tiers aim less cleanly.
                 if (run.TierScale < 1f)
@@ -1194,6 +1504,14 @@ internal static class PostStall
                     // Losing speed: scale the pull down toward 35% as the jet drops from 0.85 to 0.55 of corner
                     // speed, unless the shot is nearly there.
                     float floor = profile?.EnergyFloor ?? 0.55f;
+                    // Against a jet that out-turns us, never bleed into a slow turning fight; against one we
+                    // out-turn, the turn is ours to take.
+                    if (haveTarget)
+                    {
+                        var picture = EnergyFight.Compare(a, run.Target);
+                        if (picture.OutTurned) floor = Mathf.Max(floor, 0.72f);
+                        else if (picture.OutTurns) floor = Mathf.Min(floor, 0.5f);
+                    }
                     float energy = Mathf.Clamp01((speed - corner * floor) / (corner * 0.3f));
                     if (off > 20f) pitchRate *= Mathf.Lerp(0.35f, 1f, energy);
                     pitchRate *= run.TierScale;
@@ -1223,9 +1541,13 @@ internal static class PostStall
                 {
                     // Energy fighters do not stay in a turning fight they are losing: extend, then come back.
                     bool passedBehind = haveTarget && offNose > 110f && targetDist < HuntDropRange && !run.Cover;
-                    if (passedBehind && (AirframeProfiles.For(a)?.ExtendAndReengage ?? false))
+                    // Extend and come back: energy fighters always; anyone against a jet that out-turns them; never
+                    // a jet that out-turns the target (that turn is the winning move).
+                    var pic = haveTarget ? EnergyFight.Compare(a, run.Target) : default;
+                    bool extend = haveTarget && ((AirframeProfiles.For(a)?.ExtendAndReengage ?? false) && !pic.OutTurns || pic.OutTurned);
+                    if (passedBehind && extend)
                     {
-                        Plugin.Log.LogInfo($"{Callsign(a)}: target behind at {targetDist:0} m; extending to come back ({AirframeProfiles.For(a)?.Style}).");
+                        Plugin.Log.LogInfo($"{Callsign(a)}: target behind at {targetDist:0} m; extending to come back ({AirframeProfiles.For(a)?.Style}; {pic}).");
                         NextPhase(run, 1);
                     }
                     else if (slow) NextPhase(run, Recover);
@@ -1338,6 +1660,15 @@ internal static class PostStall
     }
 
     /// <summary>Rolls about the nose so the lift vector points up (wings level).</summary>
+    /// <summary>Sustained turn radius (m) at corner speed, from the airframe profile.</summary>
+    private static float TurnRadius(Aircraft x)
+    {
+        var p = AirframeProfiles.For(x);
+        float corner = x.GetAircraftParameters()?.cornerSpeed ?? p?.CornerSpeed ?? 150f;
+        float rate = Mathf.Max(p?.SustainedTurn ?? 14f, 1f) * Mathf.Deg2Rad;
+        return corner / rate;
+    }
+
     private static Vector3 KeepUp(Vector3 fwd, Vector3 up, float gain)
     {
         Vector3 wantUp = Vector3.up - fwd * Vector3.Dot(Vector3.up, fwd);

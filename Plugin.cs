@@ -49,7 +49,7 @@ public class Plugin : BaseUnityPlugin
     internal static ConfigEntry<float> PostStallMaxG;
     internal static ConfigEntry<bool> AceHunt;
     internal static ConfigEntry<float> FlareMultiplier;
-    internal static ConfigEntry<bool> UnlimitedPower, AlwaysJam, BeamRadarMissiles, CounterMissiles, Retreat, GoDark, ParthianShots;
+    internal static ConfigEntry<bool> UnlimitedPower, AlwaysJam, BeamRadarMissiles, TerrainTactics, CounterMissiles, Retreat, GoDark, ParthianShots;
     internal static ConfigEntry<float> RetreatFuel;
     internal static ConfigEntry<float> FormationSpacing;
     internal static ConfigEntry<bool> IntroPrewarm, IntroFadeCuts, IntroHoldFire;
@@ -188,6 +188,8 @@ public class Plugin : BaseUnityPlugin
             "Aces' capacitors never run down: radar, jammers and energy weapons always have power."));
         AlwaysJam = Config.Bind(tac, "AlwaysJam", true, Order(5,
             "Aces run their jammers all the time while fighting: self-protection ECM against radar missiles (an un-locked radar seeker cannot acquire them inside 5 km), and any jamming pod on the pilot they are hunting. Off while the flight runs dark."));
+        TerrainTactics = Config.Bind(tac, "TerrainTactics", true, Order(5,
+            "Aces use the ground (tier 2 and up): with a missile coming or someone behind them, they dive for cover and fly low behind ridges where missiles and guns cannot see them; from tier 3, with someone close on their tail down low, they may lead them at a ridge and pull up late. Only over hills and mountains."));
         BeamRadarMissiles = Config.Bind(tac, "BeamRadarMissiles", true, Order(5,
             "Against a radar-guided missile still several seconds out, aces turn to put it on the beam (where its Doppler return is weakest), drop toward the ground clutter with their jammers running, before the last-second break."));
         CounterMissiles = Config.Bind(tac, "CounterMissiles", true, Order(4,
@@ -369,6 +371,7 @@ public class Plugin : BaseUnityPlugin
         {
             Encounters.Tick();
             AcePilotStart.Tick();
+            global::NOAcesHigh.TerrainTactics.Tick();
         }
         catch (Exception ex)
         {

@@ -52,6 +52,9 @@ internal static class RecordMode
         public bool BanditNearWingman;
         public float Fuel = -1f;       // set the aces' fuel share at the start (retreat tests)
         public bool EmptyWeapons;      // empty every weapon station at the start (winchester test)
+        public bool BanditGunsOnly;    // the bandit keeps only its guns: a pure gun chase, no missile defence muddying it
+        public Vector2? At;            // start at this map position (global x, z) instead of the usual spread
+        public Vector3? Heading;       // the ace's starting heading (world), instead of toward the spawn side's base
         public float AltitudeAgl;      // start this high above the ground below (0: the usual 3,000 m)
         public float ForceKulbitWithin; // staged: the ace flies Staged when the bandit closes inside this range (metres)
         public Manoeuvre Staged = Manoeuvre.Kulbit;
@@ -88,6 +91,16 @@ internal static class RecordMode
                 Expect = "a four-ship breaks formation into a fight without any two aces coming close" },
         new() { Name = "Bingo-retreat", AceSpeed = 230f, BanditOffset = new Vector3(0f, 0f, -3000f), BanditYaw = 0f, BanditSpeed = 260f, Seconds = 30f, Fuel = 0.1f,
                 Expect = "bingo call and a run for the edge, with a radar missile over the shoulder at the chaser" },
+        new() { Name = "Terrain-mask", At = new Vector2(8000f, 23000f), Heading = Vector3.forward, AltitudeAgl = 300f, AceSpeed = 230f,
+                BanditOffset = new Vector3(0f, 1500f, -9000f), BanditYaw = 0f, BanditSpeed = 260f, Seconds = 50f,
+                Expect = "low in the mountains with a missile-armed bandit high behind: the ace should keep ridges between them (terrain masking)" },
+        new() { Name = "Valley-chase", At = new Vector2(8000f, 24000f), Heading = Vector3.forward, AltitudeAgl = 250f, AceSpeed = 230f,
+                BanditOffset = new Vector3(0f, 20f, -1200f), BanditYaw = 0f, BanditSpeed = 250f, Seconds = 45f, BanditGunsOnly = true,
+                Expect = "a gun-armed bandit close behind, low in the mountains: valley running, the ridge bait (tier 3), jinks" },
+        new() { Name = "Six-1500", AceSpeed = 230f, BanditOffset = new Vector3(0f, 0f, -1500f), BanditYaw = 0f, BanditSpeed = 250f, Seconds = 40f, BanditGunsOnly = true,
+                Expect = "a gun-armed bandit 1.5 km behind: the ace should spoil the gun solution (break, jink or reverse) rather than fly straight" },
+        new() { Name = "Six-2500", AceSpeed = 230f, BanditOffset = new Vector3(0f, 0f, -2500f), BanditYaw = 0f, BanditSpeed = 260f, Seconds = 40f, BanditGunsOnly = true,
+                Expect = "a gun-armed bandit 2.5 km behind and closing: the ace should not let it settle into a firing solution" },
         new() { Name = "Winchester-retreat", AceSpeed = 230f, BanditOffset = new Vector3(0f, 0f, -2500f), BanditYaw = 0f, BanditSpeed = 250f, Seconds = 15f, EmptyWeapons = true,
                 Expect = "winchester call and a run for the edge" },
         // Staged for film: a Revoker closing on the ace's tail low over the ground; the ace Kulbits as it closes, the
@@ -182,6 +195,24 @@ internal static class RecordMode
             Application.Quit();
             yield break;
         }
+        if (Environment.GetCommandLineArgs().Any(a => a.Equals("-noahTerrainScan", StringComparison.OrdinalIgnoreCase)))
+        {
+            TerrainScan(outDir);
+            Log(outDir, $"finished {DateTime.Now:O}");
+            File.WriteAllText(Path.Combine(outDir, "ALL-DONE.txt"), DateTime.Now.ToString("O"));
+            yield return new WaitForSecondsRealtime(1f);
+            Application.Quit();
+            yield break;
+        }
+        if (Environment.GetCommandLineArgs().Any(a => a.Equals("-noahSpawnModes", StringComparison.OrdinalIgnoreCase)))
+        {
+            yield return SpawnModesTest(aceFrame, outDir);
+            Log(outDir, $"finished {DateTime.Now:O}");
+            File.WriteAllText(Path.Combine(outDir, "ALL-DONE.txt"), DateTime.Now.ToString("O"));
+            yield return new WaitForSecondsRealtime(1f);
+            Application.Quit();
+            yield break;
+        }
         if (Environment.GetCommandLineArgs().Any(a => a.Equals("-noahHud", StringComparison.OrdinalIgnoreCase)))
         {
             yield return HudDemo(aceFrame, banditHQ, outDir);
@@ -227,6 +258,102 @@ internal static class RecordMode
     /// the BDF in a jet; the threat gauge fills; a test squadron (with test-tone music from -noahMusic &lt;folder&gt;,
     /// if given) is launched at them 20 km out; the intro, red-chevron radio and the fight are filmed.
     /// </summary>
+    /// <summary>
+    /// -noahSpawnModes: puts the local player in a jet for BDF, adds an AI aircraft for each side, then fires every
+    /// testing spawn mode in turn (4. Squadrons, Spawn mode) and logs where the flight appeared, which way it faced,
+    /// whose side it flies for and what it went after, 1 s and 20 s in.
+    /// </summary>
+    private static IEnumerator SpawnModesTest(AircraftDefinition airframe, string outDir)
+    {
+        string clip = "spawn-modes";
+        var bdf = Factions.HQFor(Side.BDF);
+        var pala = Factions.HQFor(Side.PALA);
+        if (!GameManager.GetLocalPlayer<Player>(out var player) || player == null || bdf == null || pala == null)
+        {
+            Log(outDir, $"{clip}: no local player or sides");
+            yield break;
+        }
+        player.SetFaction(bdf, skipPreventJoin: true);
+        yield return new WaitForSecondsRealtime(1f);
+        var rot = Quaternion.LookRotation(Vector3.forward, Vector3.up);
+        NetworkSceneSingleton<Spawner>.i.SpawnAircraft(player, airframe.unitPrefab, null, 1f,
+            new LiveryKey(airframe.aircraftParameters.GetRandomLiveryForFaction(bdf.faction)),
+            new GlobalPosition(-6000f, 4500f, -6000f), rot, rot * Vector3.forward * 220f, null, bdf, "Player", 1f, 1f);
+        float waited = 0f;
+        while (Session.LocalAircraft == null && waited < 10f) { waited += Time.unscaledDeltaTime; yield return null; }
+        var me = Session.LocalAircraft;
+        if (me == null) { Log(outDir, $"{clip}: the player aircraft never arrived"); yield break; }
+        var enemyAi = AceSpawner.SpawnPlain(airframe, pala, new GlobalPosition(-6000f, 4500f, 12000f), Quaternion.LookRotation(Vector3.back), 220f, "PALA AI");
+        var friendAi = AceSpawner.SpawnPlain(airframe, bdf, new GlobalPosition(4000f, 4500f, -6000f), rot, 220f, "BDF AI");
+        yield return new WaitForSecondsRealtime(3f);
+        Log(outDir, $"{clip}: player {me.definition.unitName} for BDF; AI aircraft: PALA {(enemyAi != null)}, BDF {(friendAi != null)}");
+
+        var def = new SquadronDef
+        {
+            Squadron = "Spawn Test", Tier = 3, Color = "#C9B26B", EmblemShape = "shield", Naming = "classic",
+            Aircraft = new List<string> { AirframeChecklist.Key(airframe) },
+            Members = new List<MemberDef> { new() { Callsign = "Test 1", Lead = true }, new() { Callsign = "Test 2" } },
+        };
+        foreach (Encounters.SpawnMode mode in Enum.GetValues(typeof(Encounters.SpawnMode)))
+        {
+            // Anyone shot down in the last mode comes back for the next.
+            if (Session.LocalAircraft == null)
+            {
+                yield return new WaitForSecondsRealtime(3f);
+                NetworkSceneSingleton<Spawner>.i.SpawnAircraft(player, airframe.unitPrefab, null, 1f,
+                    new LiveryKey(airframe.aircraftParameters.GetRandomLiveryForFaction(bdf.faction)),
+                    new GlobalPosition(-6000f, 4500f, -6000f), rot, rot * Vector3.forward * 220f, null, bdf, "Player", 1f, 1f);
+                waited = 0f;
+                while (Session.LocalAircraft == null && waited < 10f) { waited += Time.unscaledDeltaTime; yield return null; }
+                Log(outDir, $"{clip}: player respawned ({(Session.LocalAircraft != null)})");
+            }
+            me = Session.LocalAircraft;
+            if (me == null) { Log(outDir, $"{clip}: no player aircraft; stopping"); break; }
+            if (enemyAi == null || enemyAi.disabled)
+                enemyAi = AceSpawner.SpawnPlain(airframe, pala, me.GlobalPosition() + new Vector3(0f, 0f, 18000f), Quaternion.LookRotation(Vector3.back), 220f, "PALA AI");
+            if (friendAi == null || friendAi.disabled)
+                friendAi = AceSpawner.SpawnPlain(airframe, bdf, me.GlobalPosition() + new Vector3(10000f, 0f, 0f), rot, 220f, "BDF AI");
+            yield return new WaitForSecondsRealtime(1f);
+            if (mode == Encounters.SpawnMode.HuntMyTargets && enemyAi != null && !enemyAi.disabled)
+            {
+                me.weaponManager.ClearTargetList();
+                me.weaponManager.AddTargetList(enemyAi);
+            }
+            Encounters.DebugMode = mode;
+            string msg = Encounters.DebugSpawnNow(def);
+            Log(outDir, $"{clip} [{mode}] {msg}");
+            yield return new WaitForSecondsRealtime(1f);
+            Describe(mode, "1 s");
+            yield return new WaitForSecondsRealtime(19f);
+            Describe(mode, "20 s");
+            Encounters.DespawnActiveForTest();
+            yield return new WaitForSecondsRealtime(2f);
+        }
+        Encounters.DebugMode = Encounters.SpawnMode.AtMe;
+
+        void Describe(Encounters.SpawnMode mode, string when)
+        {
+            var lead = Encounters.ActiveLead;
+            if (me == null) { Log(outDir, $"{clip} [{mode}] {when}: the player is down"); return; }
+            var target = Encounters.ActiveTarget;
+            if (lead == null) { Log(outDir, $"{clip} [{mode}] {when}: no lead flying"); return; }
+            Vector3 toMe = me.transform.position - lead.transform.position;
+            float facing = Vector3.Angle(lead.transform.forward, toMe);
+            float bearing = Vector3.Angle(me.transform.forward, lead.transform.position - me.transform.position);
+            string side = Factions.Short(lead.NetworkHQ);
+            string aiTarget = "?";
+            try
+            {
+                var state = lead.pilots != null && lead.pilots.Length > 0 ? lead.pilots[0]?.currentState : null;
+                aiTarget = state is AIPilotCombatModes cm ? (AiTarget(cm) is { } t ? t.unitName : "none") : state?.GetType().Name ?? "no pilot";
+            }
+            catch { /* unknown */ }
+            Log(outDir, $"{clip} [{mode}] {when}: lead for {side}, {toMe.magnitude:0} m from the player ({bearing:0} deg off the player's nose), " +
+                        $"lead's nose {facing:0} deg from the player, alt {lead.GlobalPosition().y:0} m (player {me.GlobalPosition().y:0}); " +
+                        $"encounter target {(target != null ? target.unitName + $" ({Factions.Short(target.NetworkHQ)}, {Vector3.Distance(target.transform.position, lead.transform.position):0} m)" : "none")}; AI target {aiTarget}");
+        }
+    }
+
     private static IEnumerator HudDemo(AircraftDefinition airframe, FactionHQ side, string outDir)
     {
         string clip = "HUD-demo";
@@ -408,6 +535,37 @@ internal static class RecordMode
         Log(outDir, $"{clip}: down test: hit {n} ace(s) for the player");
     }
     /// <summary>Height of the ground (or sea) under a point, by a ray from high above.</summary>
+    /// <summary>
+    /// -noahTerrainScan: samples the ground every 2 km over +-80 km and logs the 15 most rugged spots (highest relief
+    /// within 4 km), for placing low-level terrain scenarios.
+    /// </summary>
+    private static void TerrainScan(string outDir)
+    {
+        const int half = 40;
+        const float step = 2000f;
+        var h = new float[half * 2 + 1, half * 2 + 1];
+        for (int i = -half; i <= half; i++)
+            for (int j = -half; j <= half; j++)
+                h[i + half, j + half] = GroundBelow(new GlobalPosition(i * step, 0f, j * step));
+        var spots = new List<(float relief, float mean, int i, int j)>();
+        for (int i = 2; i <= half * 2 - 2; i++)
+            for (int j = 2; j <= half * 2 - 2; j++)
+            {
+                float mn = float.MaxValue, mx = float.MinValue, sum = 0f;
+                for (int di = -2; di <= 2; di++)
+                    for (int dj = -2; dj <= 2; dj++)
+                    {
+                        float v = h[i + di, j + dj];
+                        mn = Mathf.Min(mn, v);
+                        mx = Mathf.Max(mx, v);
+                        sum += v;
+                    }
+                if (mn > 5f) spots.Add((mx - mn, sum / 25f, i - half, j - half));
+            }
+        foreach (var s in spots.OrderByDescending(s => s.relief).Take(15))
+            Log(outDir, $"terrain: x {s.i * step:0}, z {s.j * step:0}: relief {s.relief:0} m within 4 km, mean ground {s.mean:0} m, here {h[s.i + half, s.j + half]:0} m");
+    }
+
     private static float GroundBelow(GlobalPosition at)
     {
         var top = new GlobalPosition(at.x, 15000f, at.z).ToLocalPosition();
@@ -425,6 +583,7 @@ internal static class RecordMode
         string clip = $"{index:00}-{sc.Name}" + (tierOverride == 0 ? "-baseline" : tierOverride > 0 ? $"-tier{tierOverride}" : "");
         HideUi();
         int defencesBefore = PostStall.DefencesFlown, attacksBefore = PostStall.AttacksFlown, huntsBefore = PostStall.HuntsFlown, ripostesBefore = PostStall.RipostesFired;
+        int masksBefore = TerrainTactics.MaskRuns, hiddenBefore = TerrainTactics.MaskHidden, baitsBefore = PostStall.BaitsFlown, baitKillsBefore = PostStall.BaitKills;
 
         // The ace, somewhere different each time near the middle of the map, at about 4 km.
         var def = new SquadronDef
@@ -436,7 +595,7 @@ internal static class RecordMode
             Members = Enumerable.Range(1, Mathf.Max(1, sc.Aces)).Select(i => new MemberDef { Callsign = $"Ace {i}", Name = i == 1 ? "Test Pilot" : null, Lead = i == 1 }).ToList(),
             Formation = "echelonright",
         };
-        var anchor = new GlobalPosition(index * 5000f - 12000f, 3000f, index * 3500f - 9000f);
+        var anchor = sc.At.HasValue ? new GlobalPosition(sc.At.Value.x, 3000f, sc.At.Value.y) : new GlobalPosition(index * 5000f - 12000f, 3000f, index * 3500f - 9000f);
         if (sc.AltitudeAgl > 0f)
         {
             float ground = Mathf.Max(0f, GroundBelow(anchor)); // over the sea the ray finds the seabed
@@ -446,7 +605,9 @@ internal static class RecordMode
         AceSpawner.TestAltitude = sc.AltitudeAgl > 0f ? anchor.y : null;
         PostStall.StagingHold = sc.ForceKulbitWithin > 0f;
         PostStall.StagedSnapSeconds = sc.BanditNoFlares ? 2.2f : 0f;
+        if (sc.Heading.HasValue) AceSpawner.Placement = (-sc.Heading.Value, false);
         var enc = Encounters.LaunchForTest(def, anchor, banditHQ, sc.AceSpeed);
+        AceSpawner.Placement = null;
         AceSpawner.TestAltitude = null;
         if (enc == null || enc.Members.Count == 0)
         {
@@ -502,6 +663,8 @@ internal static class RecordMode
             Encounters.TestAces[_bandit] = 3;
             LossLog.Track(_bandit);
         }
+        if (sc.BanditGunsOnly && _bandit != null && _bandit.weaponStations != null)
+            foreach (var st in _bandit.weaponStations) if (st != null && !st.Cargo && !(st.WeaponInfo?.gun ?? false)) st.Ammo = 0;
         if (sc.BanditNoFlares)
             foreach (var ej in _bandit.GetComponentsInChildren<FlareEjector>(true)) ej.ammo = 0;
         Encounters.TestTarget = _bandit;
@@ -537,6 +700,9 @@ internal static class RecordMode
         int total = Mathf.RoundToInt(seconds * Fps);
         int frame = 0;
         float onNose = 0f, onTail = 0f; // seconds the ace had the bandit near its nose / the bandit had the ace near its nose
+        float onGun = 0f, behindTime = 0f, turnSum = 0f; // bandit within 5 deg and 2 km; bandit behind within 3 km, and the ace's heading change over that time
+        int bulletHits = 0;
+        Vector3 lastVel = Vector3.zero;
         var tex = new Texture2D(Screen.width, Screen.height, TextureFormat.RGB24, false);
         string lostAt = null;
         string lastNear = null;
@@ -554,6 +720,7 @@ internal static class RecordMode
                 Action<UnitPart.OnApplyDamage> h = e =>
                 {
                     if (e.pierceDamage + e.blastDamage + e.fireDamage + e.impactDamage < 0.01f && !e.detached) return;
+                    if (e.pierceDamage >= 0.5f) bulletHits++;
                     hits.Add($"t={Time.time - clipStart:0.0}s {p.name}: pierce {e.pierceDamage:0.#} blast {e.blastDamage:0.#} fire {e.fireDamage:0.#} impact {e.impactDamage:0.#}, hp {e.hitPoints:0}{(e.detached ? ", DETACHED" : "")}" +
                              $" (g {(_ace != null ? _ace.gForce : 0f):0.0}, bandit {(_ace != null && _bandit != null ? Vector3.Distance(_ace.transform.position, _bandit.transform.position) : 0f):0} m)");
                     if (hits.Count > 12) hits.RemoveAt(0);
@@ -626,6 +793,10 @@ internal static class RecordMode
                 float dt = 1f / Fps;
                 if (banditOffAceNose < 30f && dist < 4000f) onNose += dt;
                 if (aceOffBanditNose < 30f && dist < 4000f) onTail += dt;
+                if (aceOffBanditNose < 5f && dist < 2000f) onGun += dt;
+                Vector3 aceVel = _ace.rb != null ? _ace.rb.velocity : Vector3.zero;
+                if (banditOffAceNose > 110f && dist < 3000f && lastVel.sqrMagnitude > 1f) { behindTime += dt; turnSum += Vector3.Angle(lastVel, aceVel); }
+                lastVel = aceVel;
                 if (frame % Fps == 0)
                     Log(outDir, $"{clip} t={frame / Fps,2}s: {dist,5:0} m, bandit {banditOffAceNose,3:0} deg off the ace's nose, ace {aceOffBanditNose,3:0} deg off the bandit's nose, " +
                                 $"ace {_ace.speed * 3.6f,4:0} km/h {_ace.radarAlt,5:0} m hp {SquadronHealth.Health(_ace) * 100f:0}%, {PostStall.Describe(_ace)}" +
@@ -680,7 +851,9 @@ internal static class RecordMode
         if (forcedKulbit) Log(outDir, $"{clip}: closest pass after the {sc.Staged} {closestPass:0} m; ace lowest {lowestAlt:0} m above the ground");
         Log(outDir, $"{clip} RESULT: {(lostAt ?? "lead survived")}, aces alive {(enc != null ? enc.AliveCount : _ace != null && !_ace.disabled ? 1 : 0)}/{(enc != null ? enc.Members.Count : 1)}; offensive manoeuvres {PostStall.AttacksFlown - attacksBefore}, " +
                     $"defensive {PostStall.DefencesFlown - defencesBefore}, hunts {PostStall.HuntsFlown - huntsBefore}, ripostes {PostStall.RipostesFired - ripostesBefore}; missiles fired at the ace {missiles.Count}; " +
-                    $"ace had the bandit within 30 deg of its nose for {onNose:0.0} s, bandit had the ace for {onTail:0.0} s; " +
+                    $"ace had the bandit within 30 deg of its nose for {onNose:0.0} s, bandit had the ace for {onTail:0.0} s (gun solution, 5 deg inside 2 km: {onGun:0.0} s); " +
+                    $"with the bandit behind inside 3 km for {behindTime:0.0} s the ace turned {(behindTime > 0f ? turnSum / behindTime : 0f):0.0} deg/s on average; bullet hits taken {bulletHits}; " +
+                    $"terrain: masking {TerrainTactics.MaskRuns - masksBefore} (hidden at the end {TerrainTactics.MaskHidden - hiddenBefore}), baits {PostStall.BaitsFlown - baitsBefore} (pursuers into the ground {PostStall.BaitKills - baitKillsBefore}); " +
                     $"bandit {(_bandit == null || _bandit.disabled ? "down" : "alive")}." +
                     (minSeparation < float.MaxValue ? $" Closest two aces came: {minSeparation:0} m ({minSepAt})." : ""));
         File.WriteAllText(Path.Combine(frames, "done.txt"), frame.ToString());

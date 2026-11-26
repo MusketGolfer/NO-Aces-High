@@ -27,6 +27,13 @@ internal sealed class ActiveEncounter
     public Side Side;
     /// <summary>The side being hunted, and the pilot the aces are after (re-picked if that pilot stops flying).</summary>
     public FactionHQ TargetHQ;
+    /// <summary>Debug spawns: particular aircraft to hunt (the player's selected targets), nearest first.</summary>
+    public readonly List<Aircraft> TargetUnits = new();
+    /// <summary>Debug spawns: AI aircraft of the hunted side count as targets too, not only players.</summary>
+    public bool HuntAny;
+    public Aircraft AITarget;
+    /// <summary>Debug spawns: no intro (and so no holding fire), for close-range tests.</summary>
+    public bool SkipIntro;
     public Player TargetPlayer;
     public float NextRetarget;
     public NamingScheme Scheme;
@@ -451,6 +458,24 @@ internal static class Encounters
     {
         if (enc == null) return null;
         if (TestTarget != null && !TestTarget.disabled && enc == _active) return TestTarget;
+        var leadAc = enc.Members.FirstOrDefault(m => m.Alive && m.Aircraft != null)?.Aircraft;
+        Vector3 from = leadAc != null ? leadAc.transform.position : Vector3.zero;
+        // Debug spawns: chosen aircraft first (nearest to the lead), then, if allowed, any aircraft of the hunted side.
+        if (enc.TargetUnits.Count > 0)
+        {
+            enc.TargetUnits.RemoveAll(u => u == null || u.disabled);
+            if (enc.TargetUnits.Count > 0)
+                return enc.TargetUnits.OrderBy(u => (u.transform.position - from).sqrMagnitude).First();
+        }
+        if (enc.HuntAny && enc.TargetHQ != null)
+        {
+            if (enc.AITarget != null && !enc.AITarget.disabled && Time.time < enc.NextRetarget) return enc.AITarget;
+            enc.NextRetarget = Time.time + 5f;
+            var nearest = SideAircraft(enc.TargetHQ).OrderBy(x => (x.transform.position - from).sqrMagnitude).FirstOrDefault();
+            if (nearest != enc.AITarget && nearest != null) Plugin.Log.LogInfo($"{enc.SquadronName} now hunting {nearest.unitName}.");
+            enc.AITarget = nearest;
+            return nearest;
+        }
         var p = enc.TargetPlayer;
         if (p != null && p.Aircraft != null && !p.Aircraft.disabled) return p.Aircraft;
         if (Time.time < enc.NextRetarget) return null;
@@ -474,7 +499,26 @@ internal static class Encounters
             if (p.Aircraft == target) targetListed = true;
             yield return p.Aircraft;
         }
+        // Debug spawns hunting AI aircraft: every flying aircraft of that side is a threat and a target too.
+        if (_active.HuntAny || _active.TargetUnits.Count > 0)
+            foreach (var x in SideAircraft(_active.TargetHQ))
+            {
+                if (x.Player != null) continue; // players are listed above
+                if (x == target) targetListed = true;
+                yield return x;
+            }
         if (target != null && !targetListed) yield return target;
+    }
+
+    /// <summary>Flying aircraft of a side, players and AI.</summary>
+    internal static IEnumerable<Aircraft> SideAircraft(FactionHQ hq)
+    {
+        if (hq == null) yield break;
+        IEnumerable<Aircraft> all;
+        try { all = hq.GetActiveAircraft(false).ToList(); }
+        catch { yield break; }
+        foreach (var x in all)
+            if (x != null && !x.disabled && x.radarAlt > 20f) yield return x;
     }
 
     /// <summary>The active squadron's lead aircraft if it is still flying (debug manoeuvres).</summary>
@@ -571,11 +615,119 @@ internal static class Encounters
     /// Debug/menu: launch a squadron now (a given one, or a random pick) at you, or with nobody local flying
     /// (dedicated server) at the most dangerous pilot of any side. Returns what happened.
     /// </summary>
+    /// <summary>Where the testing Spawn buttons send a squadron (4. Squadrons). Testing only; resets each launch of the game.</summary>
+    internal enum SpawnMode { AtMe, HuntBDF, HuntPALA, HuntMyTargets, Friendly, AheadFacing, AheadAway, BehindFacing, BehindAway }
+
+    internal static readonly string[] SpawnModeLabels =
+    {
+        "At me (normal)", "Hunt BDF", "Hunt PALA", "Hunt my targets", "Friendly (my side)",
+        "3 km ahead, facing me", "3 km ahead, flying away", "3 km behind, facing me", "3 km behind, flying away",
+    };
+
+    internal static SpawnMode DebugMode = SpawnMode.AtMe;
+
     internal static string DebugSpawnNow(SquadronDef def = null)
     {
         var swTotal = System.Diagnostics.Stopwatch.StartNew();
-        try { return DebugSpawnNowInner(def); }
+        try { return DebugMode == SpawnMode.AtMe ? DebugSpawnNowInner(def) : DebugSpawnMode(def, DebugMode); }
         finally { Plugin.Log.LogInfo($"Spawn timing: whole launch {swTotal.Elapsed.TotalMilliseconds:0} ms."); }
+    }
+
+    /// <summary>
+    /// Testing spawns other than "at me":
+    /// - Hunt BDF / PALA: a squadron against that side, after its nearest flying aircraft, players or AI (no player
+    ///   needed in the air); the usual distance.
+    /// - Hunt my targets: after the aircraft in your target list (lock or select them first); the usual distance.
+    /// - Friendly: a squadron on your side, after the enemy's aircraft, players or AI.
+    /// - 3 km ahead / behind, facing you or flying away: against you, at your height and speed, no intro, weapons free.
+    /// </summary>
+    private static string DebugSpawnMode(SquadronDef def, SpawnMode mode)
+    {
+        if (!Session.InMission) return "Needs a mission in progress.";
+        if (Session.InMultiplayer && !Session.IsServer) return "Only the host can launch aces in multiplayer.";
+        if (_active is { Ended: false })
+        {
+            PruneLost(_active);
+            if (_active.AliveCount > 0) return $"{_active.SquadronName} is already up. End that encounter first.";
+            End(_active, "defeated");
+        }
+
+        var me = Session.LocalAircraft;
+        FactionHQ targetHQ;
+        Aircraft anchor;
+        List<Aircraft> units = null;
+        bool huntAny = false, skipIntro = false;
+        float? distance = null, speed = null;
+        string what;
+        switch (mode)
+        {
+            case SpawnMode.HuntBDF:
+            case SpawnMode.HuntPALA:
+            {
+                targetHQ = Factions.HQFor(mode == SpawnMode.HuntBDF ? Side.BDF : Side.PALA);
+                anchor = SideAircraft(targetHQ).OrderBy(x => me != null ? (x.transform.position - me.transform.position).sqrMagnitude : 0f).FirstOrDefault();
+                if (anchor == null) return $"Nobody of {Factions.Short(targetHQ)} is flying.";
+                huntAny = true;
+                what = $"hunting {Factions.Short(targetHQ)} (first {anchor.unitName})";
+                break;
+            }
+            case SpawnMode.HuntMyTargets:
+            {
+                if (me == null) return "Fly a jet and select targets first.";
+                units = me.weaponManager?.GetTargetList()?.OfType<Aircraft>().Where(x => x != null && !x.disabled).ToList() ?? new List<Aircraft>();
+                if (units.Count == 0) return "No aircraft in your target list: lock or select some first.";
+                anchor = units[0];
+                targetHQ = anchor.NetworkHQ;
+                huntAny = true; // the rest of their side once those are down
+                what = $"hunting your {units.Count} target(s) (first {anchor.unitName}), then the rest of {Factions.Short(targetHQ)}";
+                break;
+            }
+            case SpawnMode.Friendly:
+            {
+                if (Session.LocalHQ == null) return "Join a side first.";
+                targetHQ = Factions.Opponent(Session.LocalHQ);
+                anchor = SideAircraft(targetHQ).OrderBy(x => me != null ? (x.transform.position - me.transform.position).sqrMagnitude : 0f).FirstOrDefault();
+                if (anchor == null) return "No enemy aircraft are flying for them to hunt.";
+                huntAny = true;
+                what = $"on your side, hunting {Factions.Short(targetHQ)} (first {anchor.unitName})";
+                break;
+            }
+            default:
+            {
+                if (me == null) return "Fly a jet first.";
+                anchor = me;
+                targetHQ = Session.LocalHQ;
+                Vector3 flat = me.transform.forward;
+                flat.y = 0f;
+                if (flat.sqrMagnitude < 0.01f) flat = Vector3.forward;
+                flat.Normalize();
+                bool ahead = mode is SpawnMode.AheadFacing or SpawnMode.AheadAway;
+                bool away = mode is SpawnMode.AheadAway or SpawnMode.BehindAway;
+                AceSpawner.Placement = (ahead ? flat : -flat, away);
+                // Your height, but never lower than 150 m above the ground beneath you.
+                float groundHere = TerrainTactics.GroundY(me.transform.position);
+                float floorY = (float.IsNaN(groundHere) ? Datum.LocalSeaY : groundHere) - Datum.LocalSeaY + 150f;
+                AceSpawner.TestAltitude = Mathf.Max(me.GlobalPosition().y, floorY);
+                distance = 3000f;
+                speed = Mathf.Max(me.speed, 150f);
+                skipIntro = true;
+                what = $"3 km {(ahead ? "ahead" : "behind")}, {(away ? "flying away" : "facing you")}, no intro";
+                break;
+            }
+        }
+        if (targetHQ == null) return "That side is not in this mission.";
+        try
+        {
+            var enc = Launch(anchor, targetHQ, def, distance, speed, skipIntro, units, huntAny);
+            return enc == null
+                ? "Spawn failed; see the BepInEx log."
+                : $"Launched {enc.SquadronName} ({Factions.Short(enc.EnemyHQ)}), tier {enc.Tier}, {what}.";
+        }
+        finally
+        {
+            AceSpawner.Placement = null;
+            AceSpawner.TestAltitude = null;
+        }
     }
 
     private static string DebugSpawnNowInner(SquadronDef def)
@@ -627,12 +779,16 @@ internal static class Encounters
               $"{Formations.Label(enc.Formation)}, hunting {Session.PlayerName(enc.TargetPlayer)}.{note}";
     }
 
-    private static ActiveEncounter Launch(Aircraft target, FactionHQ targetHQ, SquadronDef chosen = null)
+    private static ActiveEncounter Launch(Aircraft target, FactionHQ targetHQ, SquadronDef chosen = null, float? distance = null, float? speed = null,
+        bool skipIntro = false, List<Aircraft> units = null, bool huntAny = false)
     {
         SquadronDef def = chosen ?? PickSquadron(Factions.Opponent(targetHQ));
-        var encounter = AceSpawner.Spawn(def, target, targetHQ, _count);
+        var encounter = target == null ? null : AceSpawner.SpawnAt(def, target.GlobalPosition(), target.Player, targetHQ, _count, distance, speed);
         if (encounter == null) return null;
 
+        encounter.SkipIntro = skipIntro;
+        encounter.HuntAny = huntAny;
+        if (units != null) encounter.TargetUnits.AddRange(units);
         _active = encounter;
         _count++;
         foreach (var m in encounter.Members)
@@ -652,10 +808,10 @@ internal static class Encounters
         if (Session.MultiplayerRules)
         {
             // Everyone's intro runs on its own clock, so the ace's opening line comes once most of them are done.
-            if (localHunted) IntroDirector.Begin(encounter);
+            if (localHunted && !encounter.SkipIntro) IntroDirector.Begin(encounter);
             Chatter.Say(encounter, "intro", encounter.LeadMember, MultiplayerIntroLineDelay);
         }
-        else if (!localHunted || !IntroDirector.Begin(encounter))
+        else if (!localHunted || encounter.SkipIntro || !IntroDirector.Begin(encounter))
         {
             // Single player: the intro speaks the opening line as the camera returns; without one it follows AWACS.
             Chatter.Say(encounter, "intro", encounter.LeadMember, 4f);

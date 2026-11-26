@@ -29,7 +29,7 @@ internal static class Patches
             prefix: nameof(RunAttackModePrefix), postfix: nameof(RunAttackModePostfix));
         Patch(harmony, "formation: no dive on a radar lock",
             AccessTools.Method(typeof(AIPilotCombatModes), "RunEvadeMode"),
-            prefix: nameof(RunEvadeModePrefix));
+            prefix: nameof(RunEvadeModePrefix), postfix: nameof(RunEvadeModePostfix));
         foreach (var name in new[] { "ChooseCombatMode", "AssessHQTargets", "ManageTarget" })
             Patch(harmony, "ace egress: no " + name,
                 AccessTools.Method(typeof(AIPilotCombatModes), name),
@@ -153,6 +153,8 @@ internal static class Patches
         AccessTools.FieldRefAccess<AIPilotCombatModes, Unit>("currentTarget");
     private static readonly AccessTools.FieldRef<AIPilotCombatModes, bool> AimVelocity =
         AccessTools.FieldRefAccess<AIPilotCombatModes, bool>("aimVelocity");
+    private static readonly AccessTools.FieldRef<AIPilotCombatModes, float> TargetHeight =
+        AccessTools.FieldRefAccess<AIPilotCombatModes, float>("targetHeight");
     private static readonly AccessTools.FieldRef<AIPilotCombatModes, bool> FollowTerrain =
         AccessTools.FieldRefAccess<AIPilotCombatModes, bool>("followTerrain");
     private static readonly AccessTools.FieldRef<AIPilotCombatModes, bool> IgnoreCollision =
@@ -175,6 +177,19 @@ internal static class Patches
         try
         {
             Aircraft aircraft = StateAircraft(__instance);
+            // Terrain masking: low and behind the ground, with the game's own terrain following holding the height.
+            if (TerrainTactics.TryGetSteer(aircraft, out var cover, out float coverHeight))
+            {
+                StateDestination(__instance) = cover;
+                AimVelocity(__instance) = false;
+                FollowTerrain(__instance) = true;
+                TargetHeight(__instance) = coverHeight;
+                IgnoreCollision(__instance) = false;
+                AimEffort(__instance) = 1f;
+                AimTargetVel(__instance) = Vector3.zero;
+                aircraft.GetInputs().throttle = 1f;
+                return false;
+            }
             bool egress = Encounters.TryGetEgressDestination(aircraft, out var destination, out float throttle);
             if (!egress && !Encounters.TryGetFormationDestination(aircraft, out destination, out throttle)) return true;
             if (egress) CurrentTarget(__instance) = null;
@@ -202,6 +217,21 @@ internal static class Patches
     /// the target height to 10 m on a lock alone. With a missile actually in the air the formation breaks anyway
     /// and the evasion runs as normal.
     /// </summary>
+    /// <summary>Terrain masking also beats the stock missile evasion's course (its countermeasures still run).</summary>
+    private static void RunEvadeModePostfix(AIPilotCombatModes __instance, ref GlobalPosition evadeDestination)
+    {
+        try
+        {
+            if (TerrainTactics.TryGetSteer(StateAircraft(__instance), out var cover, out float h))
+            {
+                evadeDestination = cover;
+                FollowTerrain(__instance) = true;
+                TargetHeight(__instance) = h;
+            }
+        }
+        catch { /* steering only */ }
+    }
+
     private static bool RunEvadeModePrefix(AIPilotCombatModes __instance, ref GlobalPosition evadeDestination)
     {
         try

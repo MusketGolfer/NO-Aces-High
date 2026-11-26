@@ -16,6 +16,8 @@ internal static class AceSpawner
 
     /// <summary>Record mode: spawn at exactly this altitude (normal spawns never go below 3,000 m).</summary>
     internal static float? TestAltitude;
+    /// <summary>Debug spawns: where the flight appears relative to the anchor (world direction) and whether it faces away. Used once.</summary>
+    internal static (Vector3 dir, bool faceAway)? Placement;
     private static readonly float[] TierSkill = { 1.5f, 2.0f, 2.5f, 3.2f };
     private static readonly float[] TierBravery = { 0.8f, 0.9f, 1.0f, 1.0f };
 
@@ -153,13 +155,16 @@ internal static class AceSpawner
         // Come from the enemy's side of the map: the direction of their nearest airbase, else anywhere.
         GlobalPosition playerPos = anchor;
         Vector3 fromDir = DirectionToNearestBase(enemy, playerPos);
+        var placement = Placement;
+        Placement = null;
+        if (placement.HasValue) fromDir = placement.Value.dir.normalized;
         float distance = distanceOverride ?? Plugin.SpawnDistanceKm.Value * 1000f;
         float altitude = TestAltitude ?? Mathf.Clamp(playerPos.y + 1000f, 3000f, 9000f);
         // Not on top of the hunted side's ships, air defences, bases or aircraft (a set test distance is left alone).
         if (distanceOverride == null) SafeSpawn(targetHQ, playerPos, ref fromDir, ref distance);
         GlobalPosition leadPos = playerPos + fromDir * distance;
         leadPos = new GlobalPosition(leadPos.x, altitude, leadPos.z);
-        Quaternion heading = Quaternion.LookRotation(-fromDir, Vector3.up);
+        Quaternion heading = Quaternion.LookRotation(placement is { faceAway: true } ? fromDir : -fromDir, Vector3.up);
         Vector3 velocity = heading * Vector3.forward * (speedOverride ?? SpawnSpeed);
 
         var spawner = NetworkSceneSingleton<Spawner>.i;
@@ -171,7 +176,7 @@ internal static class AceSpawner
             MemberDef m = members[i];
             // Spawn already in formation: the lead in slot 0, wingmen in squadron order after it.
             int slot = m.Lead ? 0 : ++wingman;
-            GlobalPosition pos = Formations.SlotPosition(leadPos, -fromDir, Formations.Offset(enc.Formation, slot));
+            GlobalPosition pos = Formations.SlotPosition(leadPos, heading * Vector3.forward, Formations.Offset(enc.Formation, slot));
             // A pilot may fly its own airframe (first installed of its list); otherwise the squadron's.
             AircraftDefinition frame = MemberAirframe(m) ?? airframe;
             LiveryKey memberLivery = m.Livery == null && frame == airframe ? livery : ResolveLivery(def, frame, enemy, m);

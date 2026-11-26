@@ -31,6 +31,11 @@ internal static class SquadronMenu
             : $"{list.Count} handmade squadron(s). Ticked ones can turn up in random encounters (HandmadeSquadronChance).", _small);
         GUILayout.Label("How to make one: README.md in the squadron folder (Open folder); copy _Template to start.", _small);
 
+        // Testing: where the Spawn buttons send a squadron.
+        GUILayout.Label("Spawn mode (testing; every Spawn button here uses it):", _small);
+        int mode = GUILayout.SelectionGrid((int)Encounters.DebugMode, Encounters.SpawnModeLabels, 3);
+        if (mode != (int)Encounters.DebugMode) Encounters.DebugMode = (Encounters.SpawnMode)mode;
+
         GUILayout.BeginHorizontal();
         if (GUILayout.Button("Spawn random")) Message = DebugQueue.Queue("Spawning a random squadron", () => Message = Encounters.DebugSpawnNow());
         GUI.enabled = Encounters.HasActive;

@@ -1,5 +1,27 @@
 # Changelog
 
+## Unreleased
+
+- **Guns defence.** An ace with someone behind it and aiming now does something about it. It breaks hard across
+  their line of fire, then (tier 2 and up) jinks in rolling reversals so the aim never settles, chopping the power
+  to force an overshoot when they close fast. Reaction time drops with the tier. Before, aces at any tier often flew
+  on while a pursuer 1-1.5 km behind held a gun solution. In testing, hits taken in tail chases fell by half.
+- **Energy fighting.** Aces now weigh their jet against yours: who turns better, who climbs better, who has the
+  energy. They refuse a turning fight with a jet that out-turns them and extend to come back instead, and commit to
+  the turn against one they out-turn. They pick one-circle or two-circle at the merge, and use high and low yo-yos
+  to avoid overshooting or to close the angle. On the defensive they choose the escape that suits: take it vertical
+  against a jet they out-climb (tier 3; the energy trap), dive away against one that beats them at both, or break
+  and jink. Jinks no longer bleed an ace slow.
+- **Aces use the terrain** (tier 2 and up; *3. Tactics → TerrainTactics*). With a missile coming or someone on their
+  tail, they dive for cover and fly low behind ridges, where missiles and guns cannot see them. From tier 3, with
+  someone close behind down low, they may lead them at a ridge and pull up late.
+- **Tier 3 reversals start from 1 km** instead of 1.5 km, closing a gap where a fast ace with a pursuer 1-1.5 km
+  behind had nothing to do.
+- **Testing: spawn modes.** *4. Squadrons* has a spawn mode for its Spawn buttons: at you (as before), hunting a side
+  (BDF or PALA, AI aircraft included, no player needed in the air), hunting your selected targets, friendly (on your
+  side, hunting the enemy), or 3 km ahead or behind you, facing you or flying away, with no intro, for close-range
+  testing.
+
 ## 1.3.1
 
 - **Music: cutscene follows the intro straight on.** When a squadron's intro music ends a moment before its
