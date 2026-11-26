@@ -487,12 +487,20 @@ internal static class RecordMode
         Transform anchorAce = sc.BanditNearWingman && enc != null && enc.Members.Count > 1 ? enc.Members[1].Aircraft.transform : _ace.transform;
         Vector3 pos = anchorAce.position + right * sc.BanditOffset.x + Vector3.up * sc.BanditOffset.y + fwd * sc.BanditOffset.z;
         Quaternion rot = Quaternion.LookRotation(Quaternion.AngleAxis(sc.BanditYaw, Vector3.up) * fwd, Vector3.up);
-        _bandit = AceSpawner.SpawnPlain(banditFrame, banditHQ, pos.ToGlobalPosition(), rot, sc.BanditSpeed, "Bandit");
+        // -noahDuel: the bandit is a tier-3 ace too (skill, flares, and every ace behaviour), for ace-against-ace tests.
+        bool duel = Environment.GetCommandLineArgs().Any(a => a.Equals("-noahDuel", StringComparison.OrdinalIgnoreCase));
+        _bandit = AceSpawner.SpawnPlain(banditFrame, banditHQ, pos.ToGlobalPosition(), rot, sc.BanditSpeed, "Bandit", duel ? 2.5f : 2f);
         if (_bandit == null)
         {
             Log(outDir, $"{clip}: bandit spawn failed");
             Encounters.DespawnActiveForTest();
             yield break;
+        }
+        if (duel && _bandit != null)
+        {
+            AceFlight.BoostFlares(_bandit, Plugin.FlareMultiplier.Value);
+            Encounters.TestAces[_bandit] = 3;
+            LossLog.Track(_bandit);
         }
         if (sc.BanditNoFlares)
             foreach (var ej in _bandit.GetComponentsInChildren<FlareEjector>(true)) ej.ammo = 0;
@@ -524,7 +532,9 @@ internal static class RecordMode
         string frames = Path.Combine(outDir, clip);
         Directory.CreateDirectory(frames);
         Time.captureFramerate = Fps;
-        int total = Mathf.RoundToInt(sc.Seconds * Fps);
+        float seconds = duel ? Mathf.Max(sc.Seconds, 90f) : sc.Seconds;
+        float banditDownAt = -1f;
+        int total = Mathf.RoundToInt(seconds * Fps);
         int frame = 0;
         float onNose = 0f, onTail = 0f; // seconds the ace had the bandit near its nose / the bandit had the ace near its nose
         var tex = new Texture2D(Screen.width, Screen.height, TextureFormat.RGB24, false);
@@ -653,6 +663,12 @@ internal static class RecordMode
                 Log(outDir, $"{clip}: pilot {pilot}; last hits: {(hits.Count > 0 ? string.Join(" | ", hits) : "none recorded")}");
                 total = Mathf.Min(total, frame + Fps); // a second of the aftermath
             }
+            if (duel && banditDownAt < 0f && (_bandit == null || _bandit.disabled))
+            {
+                banditDownAt = frame / (float)Fps;
+                Log(outDir, $"{clip}: bandit down at {banditDownAt:0.0} s");
+                total = Mathf.Min(total, frame + Fps);
+            }
         }
         AudioCapture.End();
         Time.captureFramerate = 0;
@@ -670,6 +686,7 @@ internal static class RecordMode
         File.WriteAllText(Path.Combine(frames, "done.txt"), frame.ToString());
 
         Encounters.TestTarget = null;
+        Encounters.TestAces.Clear();
         Encounters.DespawnActiveForTest();
         if (baseline) Despawn(_ace);
         Despawn(_bandit);

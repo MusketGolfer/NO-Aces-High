@@ -52,14 +52,14 @@ internal static class AceSpawner
     }
 
     /// <summary>Record mode: one ordinary AI aircraft (not an ace) with an air-to-air standard loadout.</summary>
-    internal static Aircraft SpawnPlain(AircraftDefinition airframe, FactionHQ hq, GlobalPosition pos, Quaternion rotation, float speed, string name)
+    internal static Aircraft SpawnPlain(AircraftDefinition airframe, FactionHQ hq, GlobalPosition pos, Quaternion rotation, float speed, string name, float skill = 2f)
     {
         try
         {
             Loadout loadout = PickLoadout(new SquadronDef(), airframe, hq, out float fuel);
             var livery = new LiveryKey(airframe.aircraftParameters.GetRandomLiveryForFaction(hq.faction));
             return NetworkSceneSingleton<Spawner>.i.SpawnAircraft(null, airframe.unitPrefab, loadout, fuel, livery, pos, rotation,
-                rotation * Vector3.forward * speed, null, hq, name, 2f, 1f);
+                rotation * Vector3.forward * speed, null, hq, name, skill, 1f);
         }
         catch (Exception ex)
         {

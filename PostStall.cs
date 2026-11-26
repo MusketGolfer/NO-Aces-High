@@ -613,7 +613,7 @@ internal static class PostStall
         foreach (var pair in Active)
         {
             var other = pair.Key;
-            if (other == a || other == null || other.disabled) continue;
+            if (other == a || other == null || other.disabled || other == target || other.NetworkHQ != a.NetworkHQ) continue; // same side only
             var r = pair.Value;
             if (r.Kind != Manoeuvre.Hunt || r.Target != target) continue;
             if (Vector3.Distance(other.transform.position, target.transform.position) < ourDist) return other;

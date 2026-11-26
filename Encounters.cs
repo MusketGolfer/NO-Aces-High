@@ -93,14 +93,18 @@ internal static class Encounters
     }
     private static readonly Dictionary<Aircraft, EgressInfo> Egressing = new();
 
-    internal static bool IsAce(Unit unit) => unit is Aircraft a && AceAircraft.Contains(a);
-    internal static IEnumerable<Aircraft> AllAces => AceAircraft;
+    /// <summary>Record mode only (-noahDuel): extra aircraft flown with ace behaviour at the given tier, outside any squadron.</summary>
+    internal static readonly Dictionary<Aircraft, int> TestAces = new();
+
+    internal static bool IsAce(Unit unit) => unit is Aircraft a && (AceAircraft.Contains(a) || TestAces.ContainsKey(a));
+    internal static IEnumerable<Aircraft> AllAces => AceAircraft.Concat(TestAces.Keys);
 
     /// <summary>Tier and wingman number (0 = lead, 1.. = wingmen in squadron order) of a fighting ace.</summary>
     internal static bool TryGetAce(Aircraft aircraft, out int tier, out int wingman)
     {
         tier = 0;
         wingman = 0;
+        if (aircraft != null && TestAces.TryGetValue(aircraft, out int testTier)) { tier = testTier; return true; }
         if (aircraft == null || !AceAircraft.Contains(aircraft) || _active == null) return false;
         tier = _active.Tier;
         int n = 1;
