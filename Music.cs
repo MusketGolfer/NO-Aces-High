@@ -166,6 +166,7 @@ internal static class Music
     {
         if (_enc == null || _introStarted) return;
         _introStarted = true;
+        if (_state == State.Cutscene) return; // already rolling straight on from the intro section (see Tick)
         if (Clips.TryGetValue("cutscene", out var clip)) PlayOnce(clip, State.Cutscene, fadeIn: 0.3f);
     }
 
@@ -239,7 +240,12 @@ internal static class Music
         // One-shot sections roll into the loop once they end and the intro is not holding them.
         bool sectionOver = Clock.Now >= _trackEnds - 0.5f;
         bool introBusy = IntroDirector.Active && IntroDirector.Encounter == _enc && _state == State.Cutscene;
-        if ((_state == State.Intro || _state == State.Cutscene) && sectionOver && !introBusy) PlayLoop();
+        // The intro section is over but the cutscene has not begun yet (it pre-loads its first shot for a moment):
+        // the cutscene section follows on at once, so the music does not jump to the loop and back.
+        if (_state == State.Intro && sectionOver && !_introStarted && IntroDirector.Active && IntroDirector.Encounter == _enc
+            && Clips.TryGetValue("cutscene", out var next))
+            PlayOnce(next, State.Cutscene, fadeIn: 0f);
+        else if ((_state == State.Intro || _state == State.Cutscene) && sectionOver && !introBusy) PlayLoop();
         // A cut section held by the intro past its end: fade it rather than run on into the rest of the file.
         else if ((_state == State.Intro || _state == State.Cutscene) && _playing is { End: > 0f } && Clock.Now >= _trackEnds + 0.5f)
         {
